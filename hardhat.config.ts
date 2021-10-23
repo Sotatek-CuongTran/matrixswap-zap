@@ -9,6 +9,7 @@ import { HardhatUserConfig } from "hardhat/config";
 import { NetworkUserConfig } from "hardhat/types";
 import { join, resolve } from "path";
 import "solidity-coverage";
+require("hardhat-contract-sizer");
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 
