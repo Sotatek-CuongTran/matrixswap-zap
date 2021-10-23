@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "./interfaces/IUniswapV2Pair.sol";
 import "./interfaces/IUniswapV2Router02.sol";
+import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IStakingReward.sol";
 import "./interfaces/IWETH.sol";
 
@@ -19,21 +20,25 @@ contract Zap is OwnableUpgradeable {
     address public constant WETH = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
     IUniswapV2Router02 private ROUTER;
+    IUniswapV2Factory private FACTORY;
 
     /* ========== STATE VARIABLES ========== */
 
     mapping(address => bool) private notLP;
     mapping(address => address) private routePairAddresses;
+    mapping(bytes32 => address) private itermediateTokens;
     // mapping(address => address) public stakingRewards; // LP => farming pool address
     address[] public tokens;
 
     /* ========== INITIALIZER ========== */
 
-    function initialize(address _router) external initializer {
+    function initialize(address _router, address _factory) external initializer {
         __Ownable_init();
         require(owner() != address(0), "ZapETH: owner must be set");
 
         ROUTER = IUniswapV2Router02(_router);
+        FACTORY = IUniswapV2Factory(_factory);
+
         setNotLP(WETH);
         setNotLP(USDT);
         setNotLP(DAI);
@@ -281,6 +286,34 @@ contract Zap is OwnableUpgradeable {
         return amounts[amounts.length - 1];
     }
 
+    function _swapV2(
+        address _from,
+        uint256 amount,
+        address _to,
+        address receiver
+    ) private returns (uint256) {
+        // get pair of two token
+        address pair = FACTORY.getPair(_from, _to);
+        address[] memory path;
+
+        if (pair == address(0)) {
+            address intermediate = itermediateTokens[_getBytes32Key(_from, _to)];
+            require(intermediate != address(0), "ZAP: NEP"); // not exist path
+
+            path = new address[](3);
+            path[0] = _from;
+            path[1] = intermediate;
+            path[2] = _to;
+        } else {
+            path = new address[](2);
+            path[0] = _from;
+            path[1] = _to;
+        }
+
+        uint256[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);
+        return amounts[amounts.length - 1];
+    }
+
     function _swap(
         address _from,
         uint256 amount,
@@ -403,5 +436,24 @@ contract Zap is OwnableUpgradeable {
         }
 
         IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)));
+    }
+
+    function addItermediateToken(
+        address _token0,
+        address _token1,
+        address _itermediateAddress
+    ) external {
+        bytes32 key = _getBytes32Key(_token0, _token1);
+        itermediateTokens[key] = _itermediateAddress;
+    }
+
+    function removeItermediateToken(address _token0, address _token1) external {
+        bytes32 key = _getBytes32Key(_token0, _token1);
+        itermediateTokens[key] = address(0);
+    }
+
+    function _getBytes32Key(address _token0, address _token1) private pure returns (bytes32) {
+        (_token0, _token1) = _token0 < _token1 ? (_token0, _token1) : (_token1, _token0);
+        return keccak256(abi.encodePacked(_token0, _token1));
     }
 }
