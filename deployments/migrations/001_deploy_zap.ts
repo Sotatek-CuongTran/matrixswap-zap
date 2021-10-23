@@ -6,10 +6,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment): Pr
   const { deploy } = deployments;
   const { deployer } = await getNamedAccounts();
 
-  await deploy("Greeter", {
+  await deploy("Zap", {
     from: deployer,
-    args: ["Say hello, be nice"],
     log: true,
+    proxy: {
+      proxyContract: "OptimizedTransparentProxy",
+      execute: {
+        methodName: "initialize",
+        args: ["0x000000000000000000000", "0x000000000000000000000"], // [router, factory]
+      },
+    },
   });
 };
 

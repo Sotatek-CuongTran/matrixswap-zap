@@ -19,14 +19,16 @@ contract Zap is OwnableUpgradeable {
     address public constant DAI = 0xbA7dEebBFC5fA1100Fb055a87773e1E99Cd3507a;
     address public constant WETH = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
 
+    // solhint-disable-next-line
     IUniswapV2Router02 private ROUTER;
+    // solhint-disable-next-line
     IUniswapV2Factory private FACTORY;
 
     /* ========== STATE VARIABLES ========== */
 
     mapping(address => bool) private notLP;
     mapping(address => address) private routePairAddresses;
-    mapping(bytes32 => address) private itermediateTokens;
+    mapping(bytes32 => address) private intermediateTokens;
     // mapping(address => address) public stakingRewards; // LP => farming pool address
     address[] public tokens;
 
@@ -44,6 +46,7 @@ contract Zap is OwnableUpgradeable {
         setNotLP(DAI);
     }
 
+    // solhint-disable-next-line
     receive() external payable {}
 
     /* ========== View Functions ========== */
@@ -99,6 +102,8 @@ contract Zap is OwnableUpgradeable {
     ) external payable {
         require(isLP(_to), "ZAP: NLP");
 
+        // has 1 risk: excess one token amount => need to send to user
+
         _swapETHToLP(_to, msg.value, address(this));
 
         IStakingRewards(_farmingPool).stake(IERC20(_to).balanceOf(address(this)));
@@ -126,6 +131,7 @@ contract Zap is OwnableUpgradeable {
                 uint256 otherAmount = _swap(_from, sellAmount, other, address(this));
                 ROUTER.addLiquidity(_from, other, amount - sellAmount, otherAmount, 0, 0, _receiver, block.timestamp);
             } else {
+                // solhint-disable-next-line
                 uint256 ETHAmount = _swapTokenForETH(_from, amount, address(this));
                 _swapETHToLP(_to, ETHAmount, _receiver);
             }
@@ -297,7 +303,7 @@ contract Zap is OwnableUpgradeable {
         address[] memory path;
 
         if (pair == address(0)) {
-            address intermediate = itermediateTokens[_getBytes32Key(_from, _to)];
+            address intermediate = intermediateTokens[_getBytes32Key(_from, _to)];
             require(intermediate != address(0), "ZAP: NEP"); // not exist path
 
             path = new address[](3);
@@ -314,6 +320,7 @@ contract Zap is OwnableUpgradeable {
         return amounts[amounts.length - 1];
     }
 
+    // solhint-disable-next-line
     function _swap(
         address _from,
         uint256 amount,
@@ -438,18 +445,18 @@ contract Zap is OwnableUpgradeable {
         IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)));
     }
 
-    function addItermediateToken(
+    function addIntermediateToken(
         address _token0,
         address _token1,
-        address _itermediateAddress
+        address _intermediateAddress
     ) external {
         bytes32 key = _getBytes32Key(_token0, _token1);
-        itermediateTokens[key] = _itermediateAddress;
+        intermediateTokens[key] = _intermediateAddress;
     }
 
-    function removeItermediateToken(address _token0, address _token1) external {
+    function removeIntermediateToken(address _token0, address _token1) external {
         bytes32 key = _getBytes32Key(_token0, _token1);
-        itermediateTokens[key] = address(0);
+        intermediateTokens[key] = address(0);
     }
 
     function _getBytes32Key(address _token0, address _token1) private pure returns (bytes32) {
