@@ -9,6 +9,7 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IStakingReward.sol";
 import "./interfaces/IWETH.sol";
+import "hardhat/console.sol";
 
 contract Zap is OwnableUpgradeable {
     using SafeERC20 for IERC20;
@@ -34,7 +35,10 @@ contract Zap is OwnableUpgradeable {
 
     /* ========== INITIALIZER ========== */
 
-    function initialize(address _router, address _factory) external initializer {
+    function initialize(address _router, address _factory)
+        external
+        initializer
+    {
         __Ownable_init();
         require(owner() != address(0), "ZapETH: owner must be set");
 
@@ -73,9 +77,15 @@ contract Zap is OwnableUpgradeable {
 
         _approveTokenIfNeeded(_from);
         zapInToken(_from, amount, _to, address(this));
+        _approveTokenIfNeeded(_farmingPool, _to);
 
-        IStakingRewards(_farmingPool).stake(IERC20(_to).balanceOf(address(this)));
-        IERC20(_farmingPool).transfer(_receiver, IERC20(_farmingPool).balanceOf(address(this)));
+        IStakingRewards(_farmingPool).stake(
+            IERC20(_to).balanceOf(address(this))
+        );
+        IERC20(_farmingPool).transfer(
+            _receiver,
+            IERC20(_farmingPool).balanceOf(address(this))
+        );
     }
 
     /// @notice use zapInTokenV2
@@ -91,8 +101,22 @@ contract Zap is OwnableUpgradeable {
         _approveTokenIfNeeded(_from);
         zapInTokenV2(_from, amount, _to, address(this));
 
-        IStakingRewards(_farmingPool).stake(IERC20(_to).balanceOf(address(this)));
-        IERC20(_farmingPool).transfer(_receiver, IERC20(_farmingPool).balanceOf(address(this)));
+        _approveTokenIfNeeded(_farmingPool, _to);
+        uint256 allowance = IERC20(_to).allowance(
+            address(this),
+            address(_farmingPool)
+        );
+        console.log(allowance);
+        IStakingRewards(_farmingPool).stake(
+            IERC20(_to).balanceOf(address(this))
+        );
+
+        uint256 lpAmount = IERC20(_farmingPool).balanceOf(address(this));
+        console.log(lpAmount);
+        IERC20(_farmingPool).safeTransfer(
+            _receiver,
+            IERC20(_farmingPool).balanceOf(address(this))
+        );
     }
 
     function zapAndFarm(
@@ -106,8 +130,13 @@ contract Zap is OwnableUpgradeable {
 
         _swapETHToLP(_to, msg.value, address(this));
 
-        IStakingRewards(_farmingPool).stake(IERC20(_to).balanceOf(address(this)));
-        IERC20(_farmingPool).transfer(_receiver, IERC20(_farmingPool).balanceOf(address(this)));
+        IStakingRewards(_farmingPool).stake(
+            IERC20(_to).balanceOf(address(this))
+        );
+        IERC20(_farmingPool).transfer(
+            _receiver,
+            IERC20(_farmingPool).balanceOf(address(this))
+        );
     }
 
     function zapInToken(
@@ -128,11 +157,29 @@ contract Zap is OwnableUpgradeable {
                 address other = _from == token0 ? token1 : token0;
                 _approveTokenIfNeeded(other);
                 uint256 sellAmount = amount / 2;
-                uint256 otherAmount = _swap(_from, sellAmount, other, address(this));
-                ROUTER.addLiquidity(_from, other, amount - sellAmount, otherAmount, 0, 0, _receiver, block.timestamp);
+                uint256 otherAmount = _swap(
+                    _from,
+                    sellAmount,
+                    other,
+                    address(this)
+                );
+                ROUTER.addLiquidity(
+                    _from,
+                    other,
+                    amount - sellAmount,
+                    otherAmount,
+                    0,
+                    0,
+                    _receiver,
+                    block.timestamp
+                );
             } else {
                 // solhint-disable-next-line
-                uint256 ETHAmount = _swapTokenForETH(_from, amount, address(this));
+                uint256 ETHAmount = _swapTokenForETH(
+                    _from,
+                    amount,
+                    address(this)
+                );
                 _swapETHToLP(_to, ETHAmount, _receiver);
             }
         } else {
@@ -148,32 +195,63 @@ contract Zap is OwnableUpgradeable {
         address _to,
         address _receiver
     ) public {
+        require(isLP(_to), "ZAP: NLP");
+
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         _approveTokenIfNeeded(_from);
 
-        if (isLP(_to)) {
-            IUniswapV2Pair pair = IUniswapV2Pair(_to);
-            address token0 = pair.token0();
-            address token1 = pair.token1();
-            if (_from == token0 || _from == token1) {
-                // swap half amount for other
-                address other = _from == token0 ? token1 : token0;
-                _approveTokenIfNeeded(other);
-                uint256 sellAmount = amount / 2;
-                uint256 otherAmount = _swap(_from, sellAmount, other, address(this));
-                ROUTER.addLiquidity(_from, other, amount - sellAmount, otherAmount, 0, 0, _receiver, block.timestamp);
-            } else {
-                _approveTokenIfNeeded(_to);
-                uint256 sellAmount = amount / 2;
-                uint256 token0Amount = _swap(_from, sellAmount, token0, address(this));
-                uint256 token1Amount = _swap(_from, amount - sellAmount, token1, address(this));
+        IUniswapV2Pair pair = IUniswapV2Pair(_to);
+        address token0 = pair.token0();
+        address token1 = pair.token1();
+        if (_from == token0 || _from == token1) {
+            // swap half amount for other
+            address other = _from == token0 ? token1 : token0;
+            _approveTokenIfNeeded(other);
+            uint256 sellAmount = amount / 2;
+            uint256 otherAmount = _swapV2(
+                _from,
+                sellAmount,
+                other,
+                address(this)
+            );
+            ROUTER.addLiquidity(
+                _from,
+                other,
+                amount - sellAmount,
+                otherAmount,
+                0,
+                0,
+                _receiver,
+                block.timestamp
+            );
+        } else {
+            uint256 sellAmount = amount / 2;
+            uint256 token0Amount = _swapV2(
+                _from,
+                sellAmount,
+                token0,
+                address(this)
+            );
+            uint256 token1Amount = _swapV2(
+                _from,
+                amount - sellAmount,
+                token1,
+                address(this)
+            );
 
-                ROUTER.addLiquidity(token0, token1, token0Amount, token1Amount, 0, 0, _receiver, block.timestamp);
-            }
-        }
-        // this case is swap _from to _to
-        else {
-            _swap(_from, amount, _to, _receiver);
+            _approveTokenIfNeeded(token0);
+            _approveTokenIfNeeded(token1);
+
+            ROUTER.addLiquidity(
+                token0,
+                token1,
+                token0Amount,
+                token1Amount,
+                0,
+                0,
+                _receiver,
+                block.timestamp
+            );
         }
     }
 
@@ -196,9 +274,24 @@ contract Zap is OwnableUpgradeable {
             address token0 = pair.token0();
             address token1 = pair.token1();
             if (token0 == WETH || token1 == WETH) {
-                ROUTER.removeLiquidityETH(token0 != WETH ? token0 : token1, amount, 0, 0, _receiver, block.timestamp);
+                ROUTER.removeLiquidityETH(
+                    token0 != WETH ? token0 : token1,
+                    amount,
+                    0,
+                    0,
+                    _receiver,
+                    block.timestamp
+                );
             } else {
-                ROUTER.removeLiquidity(token0, token1, amount, 0, 0, _receiver, block.timestamp);
+                ROUTER.removeLiquidity(
+                    token0,
+                    token1,
+                    amount,
+                    0,
+                    0,
+                    _receiver,
+                    block.timestamp
+                );
             }
         }
     }
@@ -208,6 +301,12 @@ contract Zap is OwnableUpgradeable {
     function _approveTokenIfNeeded(address token) private {
         if (IERC20(token).allowance(address(this), address(ROUTER)) == 0) {
             IERC20(token).safeApprove(address(ROUTER), type(uint256).max);
+        }
+    }
+
+    function _approveTokenIfNeeded(address spender, address token) private {
+        if (IERC20(token).allowance(address(this), address(spender)) == 0) {
+            IERC20(token).approve(address(spender), type(uint256).max);
         }
     }
 
@@ -226,7 +325,11 @@ contract Zap is OwnableUpgradeable {
             if (token0 == WETH || token1 == WETH) {
                 address token = token0 == WETH ? token1 : token0;
                 uint256 swapValue = amount / 2;
-                uint256 tokenAmount = _swapETHForToken(token, swapValue, address(this));
+                uint256 tokenAmount = _swapETHForToken(
+                    token,
+                    swapValue,
+                    address(this)
+                );
 
                 _approveTokenIfNeeded(token);
                 ROUTER.addLiquidityETH{ value: amount - swapValue }(
@@ -239,12 +342,29 @@ contract Zap is OwnableUpgradeable {
                 );
             } else {
                 uint256 swapValue = amount - 2;
-                uint256 token0Amount = _swapETHForToken(token0, swapValue, address(this));
-                uint256 token1Amount = _swapETHForToken(token1, amount - swapValue, address(this));
+                uint256 token0Amount = _swapETHForToken(
+                    token0,
+                    swapValue,
+                    address(this)
+                );
+                uint256 token1Amount = _swapETHForToken(
+                    token1,
+                    amount - swapValue,
+                    address(this)
+                );
 
                 _approveTokenIfNeeded(token0);
                 _approveTokenIfNeeded(token1);
-                ROUTER.addLiquidity(token0, token1, token0Amount, token1Amount, 0, 0, receiver, block.timestamp);
+                ROUTER.addLiquidity(
+                    token0,
+                    token1,
+                    token0Amount,
+                    token1Amount,
+                    0,
+                    0,
+                    receiver,
+                    block.timestamp
+                );
             }
         }
     }
@@ -267,7 +387,12 @@ contract Zap is OwnableUpgradeable {
             path[1] = token;
         }
 
-        uint256[] memory amounts = ROUTER.swapExactETHForTokens{ value: value }(0, path, receiver, block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactETHForTokens{ value: value }(
+            0,
+            path,
+            receiver,
+            block.timestamp
+        );
         return amounts[amounts.length - 1];
     }
 
@@ -288,7 +413,13 @@ contract Zap is OwnableUpgradeable {
             path[1] = WETH;
         }
 
-        uint256[] memory amounts = ROUTER.swapExactTokensForETH(amount, 0, path, receiver, block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactTokensForETH(
+            amount,
+            0,
+            path,
+            receiver,
+            block.timestamp
+        );
         return amounts[amounts.length - 1];
     }
 
@@ -303,7 +434,9 @@ contract Zap is OwnableUpgradeable {
         address[] memory path;
 
         if (pair == address(0)) {
-            address intermediate = intermediateTokens[_getBytes32Key(_from, _to)];
+            address intermediate = intermediateTokens[
+                _getBytes32Key(_from, _to)
+            ];
             require(intermediate != address(0), "ZAP: NEP"); // not exist path
 
             path = new address[](3);
@@ -316,7 +449,13 @@ contract Zap is OwnableUpgradeable {
             path[1] = _to;
         }
 
-        uint256[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            receiver,
+            block.timestamp
+        );
         return amounts[amounts.length - 1];
     }
 
@@ -339,12 +478,18 @@ contract Zap is OwnableUpgradeable {
             path[0] = _from;
             path[1] = intermediate;
             path[2] = _to;
-        } else if (intermediate != address(0) && (_from == intermediate || _to == intermediate)) {
+        } else if (
+            intermediate != address(0) &&
+            (_from == intermediate || _to == intermediate)
+        ) {
             // [VAI, BUSD] or [BUSD, VAI]
             path = new address[](2);
             path[0] = _from;
             path[1] = _to;
-        } else if (intermediate != address(0) && routePairAddresses[_from] == routePairAddresses[_to]) {
+        } else if (
+            intermediate != address(0) &&
+            routePairAddresses[_from] == routePairAddresses[_to]
+        ) {
             // [VAI, DAI] or [VAI, USDC]
             path = new address[](3);
             path[0] = _from;
@@ -363,14 +508,19 @@ contract Zap is OwnableUpgradeable {
             path[2] = WETH;
             path[3] = routePairAddresses[_to];
             path[4] = _to;
-        } else if (intermediate != address(0) && routePairAddresses[_from] != address(0)) {
+        } else if (
+            intermediate != address(0) &&
+            routePairAddresses[_from] != address(0)
+        ) {
             // [VAI, BUSD, WETH, BUNNY]
             path = new address[](4);
             path[0] = _from;
             path[1] = intermediate;
             path[2] = WETH;
             path[3] = _to;
-        } else if (intermediate != address(0) && routePairAddresses[_to] != address(0)) {
+        } else if (
+            intermediate != address(0) && routePairAddresses[_to] != address(0)
+        ) {
             // [BUNNY, WETH, BUSD, VAI]
             path = new address[](4);
             path[0] = _from;
@@ -390,13 +540,22 @@ contract Zap is OwnableUpgradeable {
             path[2] = _to;
         }
 
-        uint256[] memory amounts = ROUTER.swapExactTokensForTokens(amount, 0, path, receiver, block.timestamp);
+        uint256[] memory amounts = ROUTER.swapExactTokensForTokens(
+            amount,
+            0,
+            path,
+            receiver,
+            block.timestamp
+        );
         return amounts[amounts.length - 1];
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
-    function setRoutePairAddress(address asset, address route) external onlyOwner {
+    function setRoutePairAddress(address asset, address route)
+        external
+        onlyOwner
+    {
         routePairAddresses[asset] = route;
     }
 
@@ -454,13 +613,21 @@ contract Zap is OwnableUpgradeable {
         intermediateTokens[key] = _intermediateAddress;
     }
 
-    function removeIntermediateToken(address _token0, address _token1) external {
+    function removeIntermediateToken(address _token0, address _token1)
+        external
+    {
         bytes32 key = _getBytes32Key(_token0, _token1);
         intermediateTokens[key] = address(0);
     }
 
-    function _getBytes32Key(address _token0, address _token1) private pure returns (bytes32) {
-        (_token0, _token1) = _token0 < _token1 ? (_token0, _token1) : (_token1, _token0);
+    function _getBytes32Key(address _token0, address _token1)
+        private
+        pure
+        returns (bytes32)
+    {
+        (_token0, _token1) = _token0 < _token1
+            ? (_token0, _token1)
+            : (_token1, _token0);
         return keccak256(abi.encodePacked(_token0, _token1));
     }
 }

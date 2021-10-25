@@ -1,34 +1,29 @@
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { expect } from "chai";
-import hre from "hardhat";
-import { Greeter } from "../../typechain/Greeter";
+import { fixtureV2 } from "../utils/fixture";
+import { ethers, waffle } from "hardhat";
+import { Wallet } from "ethers";
+import { Zap } from "../../typechain";
 
-const { loadFixture } = hre.waffle;
+describe("AutoCompounder", () => {
+  let wallets: Wallet[];
+  let zap: Zap;
 
-describe("Unit tests", () => {
-  let admin: SignerWithAddress;
-  let greeter: Greeter;
-  before(async () => {
-    const signers: SignerWithAddress[] = await hre.ethers.getSigners();
-    admin = signers[0];
+  let loadFixture: ReturnType<typeof waffle.createFixtureLoader>;
+
+  before("create fixture loader", async () => {
+    wallets = await (ethers as any).getSigners();
   });
 
-  describe("Greeter", () => {
-    const fixture = async () => {
-      const greeting: string = "Hello, world!";
-      const Greeter = await hre.ethers.getContractFactory("Greeter");
-      return (await Greeter.connect(admin).deploy(greeting)) as Greeter;
-    };
+  beforeEach(async () => {
+    loadFixture = waffle.createFixtureLoader(wallets as any);
 
-    beforeEach(async () => {
-      greeter = await loadFixture(fixture);
-    });
+    const { factory, router } = await loadFixture(fixtureV2);
 
-    it("should return the new greeting once it's changed", async () => {
-      expect(await greeter.connect(admin).greet()).to.equal("Hello, world!");
+    const zapDeployer = await ethers.getContractFactory("Zap");
+    zap = (await zapDeployer.deploy()) as Zap;
+    await zap.initialize(router.address, factory.address);
 
-      await greeter.setGreeting("Bonjour, le monde!");
-      expect(await greeter.connect(admin).greet()).to.equal("Bonjour, le monde!");
-    });
+    console.log("ZAP: ", zap.address);
   });
+
+  it("token0 - token1", async () => {});
 });

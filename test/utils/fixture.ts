@@ -1,6 +1,6 @@
 import { StakingRewards } from "./../../typechain/StakingRewards.d";
 import { deployContract, Fixture } from "ethereum-waffle";
-import { Contract } from "ethers";
+import { Contract, ethers } from "ethers";
 import web3 from "web3";
 import {
   abi as weth9abi,
@@ -177,6 +177,22 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     overrides,
   )) as unknown as IUniswapV2Router02;
 
+  const user = "0xB1B11E04348f4271B163dB51138704F3Dec0c128";
+  await wallet.sendTransaction({
+    from: await wallet.getAddress(),
+    to: user,
+    value: "0x56BC75E2D63100000",
+  });
+
+  for (const token of [token0, token1, token2, token3, token4]) {
+    // approve for router and pair
+    await token.approve(router.address, ethers.constants.MaxUint256);
+    await token.approve(factory.address, ethers.constants.MaxUint256);
+
+    // tranfer to test
+    await token.transfer(user, toWei("10000"));
+  }
+
   await factory.createPair(token0.address, token1.address);
   await factory.createPair(token0.address, token2.address);
   await factory.createPair(token2.address, token3.address);
@@ -191,6 +207,17 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
       JSON.stringify(IUniswapV2Pair.abi),
       provider as any,
     ).connect(wallet as any);
+
+    await router.addLiquidity(
+      tokenA.address,
+      tokenB.address,
+      toWei("1000000"),
+      toWei("1000000"),
+      toWei("100"),
+      toWei("100"),
+      wallet.address,
+      1726756514, // deadline
+    );
     return pair;
   };
 
@@ -207,6 +234,21 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     WETH.address,
     pair01.address,
   ])) as StakingRewards;
+
+  console.log("token0: ", token0.address);
+  console.log("token1: ", token1.address);
+  console.log("token2: ", token2.address);
+  console.log("token3: ", token3.address);
+  console.log("token4: ", token4.address);
+  console.log("pair01: ", pair01.address);
+  console.log("pair02: ", pair02.address);
+  console.log("pair23: ", pair23.address);
+  console.log("pair13: ", pair13.address);
+  console.log("pair04: ", pair04.address);
+  console.log("pair14: ", pair14.address);
+  console.log("router: ", router.address);
+  console.log("factory: ", factory.address);
+  console.log("farmingPool01: ", farmingPool01.address);
 
   return {
     token0,
