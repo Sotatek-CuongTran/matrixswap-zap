@@ -9,21 +9,20 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IStakingReward.sol";
 import "./interfaces/IWETH.sol";
-import "hardhat/console.sol";
 
 contract Zap is OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
     /* ========== CONSTANT VARIABLES ========== */
 
-    address public constant USDT = 0xde3A24028580884448a5397872046a019649b084;
-    address public constant DAI = 0xbA7dEebBFC5fA1100Fb055a87773e1E99Cd3507a;
-    address public constant WETH = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
+    address public constant USDT = 0xc2132D05D31c914a87C6611C10748AEb04B58e8F; // polygon
+    address public constant DAI = 0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063; // polygon
+    address public constant WETH = 0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270; // polygon WMATIC
 
     // solhint-disable-next-line
-    IUniswapV2Router02 private ROUTER;
+    IUniswapV2Router02 public ROUTER;
     // solhint-disable-next-line
-    IUniswapV2Factory private FACTORY;
+    IUniswapV2Factory public FACTORY;
 
     /* ========== STATE VARIABLES ========== */
 
@@ -102,17 +101,10 @@ contract Zap is OwnableUpgradeable {
         zapInTokenV2(_from, amount, _to, address(this));
 
         _approveTokenIfNeeded(_farmingPool, _to);
-        uint256 allowance = IERC20(_to).allowance(
-            address(this),
-            address(_farmingPool)
-        );
-        console.log(allowance);
         IStakingRewards(_farmingPool).stake(
             IERC20(_to).balanceOf(address(this))
         );
 
-        uint256 lpAmount = IERC20(_farmingPool).balanceOf(address(this));
-        console.log(lpAmount);
         IERC20(_farmingPool).safeTransfer(
             _receiver,
             IERC20(_farmingPool).balanceOf(address(this))

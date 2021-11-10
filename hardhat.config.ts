@@ -1,5 +1,6 @@
 import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
+import "@nomiclabs/hardhat-etherscan";
 import { config as dotenvConfig } from "dotenv";
 import { readdirSync } from "fs";
 import "hardhat-contract-sizer";
@@ -28,6 +29,7 @@ const chainIds = {
   mainnet: 1,
   rinkeby: 4,
   ropsten: 3,
+  polygon: 137,
 };
 
 // Ensure that we have all the environment variables we need.
@@ -42,7 +44,10 @@ if (!infuraApiKey) {
 }
 
 function getChainConfig(network: keyof typeof chainIds): NetworkUserConfig {
-  const url: string = "https://" + network + ".infura.io/v3/" + infuraApiKey;
+  let url: string = "https://" + network + ".infura.io/v3/" + infuraApiKey;
+  if (network === "polygon") {
+    url = "https://polygon-rpc.com";
+  }
   return {
     accounts: [`0x${deployerPrivateKey}`],
     chainId: chainIds[network],
@@ -66,6 +71,11 @@ const config: HardhatUserConfig = {
     kovan: getChainConfig("kovan"),
     rinkeby: getChainConfig("rinkeby"),
     ropsten: getChainConfig("ropsten"),
+    polygon: getChainConfig("polygon"),
+  },
+  etherscan: {
+    // Your API key for Etherscan
+    apiKey: process.env.ETHERSCAN_API_KEY,
   },
   paths: {
     artifacts: "./artifacts",
@@ -79,6 +89,9 @@ const config: HardhatUserConfig = {
     compilers: [
       {
         version: "0.5.16",
+      },
+      {
+        version: "0.7.6",
       },
       {
         version: "0.8.7",
