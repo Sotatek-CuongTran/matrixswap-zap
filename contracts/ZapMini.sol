@@ -27,8 +27,8 @@ contract ZapMini is OwnableUpgradeable {
 
     /* ========== STATE VARIABLES ========== */
 
-    mapping(address => address) private routePairAddresses; // WMATIC vs token
-    mapping(bytes32 => address) private intermediateTokens;
+    mapping(address => address) public routePairAddresses; // WMATIC vs token
+    mapping(bytes32 => address) public intermediateTokens;
 
     event ZapIn(
         address indexed token,
@@ -280,13 +280,14 @@ contract ZapMini is OwnableUpgradeable {
         address _token0,
         address _token1,
         address _intermediateAddress
-    ) external {
+    ) external onlyOwner {
         bytes32 key = _getBytes32Key(_token0, _token1);
         intermediateTokens[key] = _intermediateAddress;
     }
 
     function removeIntermediateToken(address _token0, address _token1)
         external
+        onlyOwner
     {
         bytes32 key = _getBytes32Key(_token0, _token1);
         intermediateTokens[key] = address(0);

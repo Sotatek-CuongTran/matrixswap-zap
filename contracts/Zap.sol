@@ -27,8 +27,8 @@ contract Zap is OwnableUpgradeable {
     /* ========== STATE VARIABLES ========== */
 
     mapping(address => bool) private notLP;
-    mapping(address => address) private routePairAddresses;
-    mapping(bytes32 => address) private intermediateTokens;
+    mapping(address => address) public routePairAddresses;
+    mapping(bytes32 => address) public intermediateTokens;
     // mapping(address => address) public stakingRewards; // LP => farming pool address
     address[] public tokens;
 
@@ -600,13 +600,14 @@ contract Zap is OwnableUpgradeable {
         address _token0,
         address _token1,
         address _intermediateAddress
-    ) external {
+    ) external onlyOwner {
         bytes32 key = _getBytes32Key(_token0, _token1);
         intermediateTokens[key] = _intermediateAddress;
     }
 
     function removeIntermediateToken(address _token0, address _token1)
         external
+        onlyOwner
     {
         bytes32 key = _getBytes32Key(_token0, _token1);
         intermediateTokens[key] = address(0);
