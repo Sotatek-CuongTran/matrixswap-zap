@@ -245,6 +245,8 @@ contract Zap is OwnableUpgradeable {
                 block.timestamp
             );
         }
+        _transferExcessBalance(token0, msg.sender);
+        _transferExcessBalance(token1, msg.sender);
     }
 
     function zapIn(address _to, address _receiver) external payable {
@@ -622,5 +624,12 @@ contract Zap is OwnableUpgradeable {
             ? (_token0, _token1)
             : (_token1, _token0);
         return keccak256(abi.encodePacked(_token0, _token1));
+    }
+
+    function _transferExcessBalance(address _token, address _user) private {
+        uint256 amount = IERC20(_token).balanceOf(address(this));
+        if (amount > 0) {
+            IERC20(_token).transfer(_user, amount);
+        }
     }
 }

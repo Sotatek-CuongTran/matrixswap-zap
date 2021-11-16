@@ -1,5 +1,6 @@
+import { QUICKSWAP } from "./../test/utils/constants";
 import { task } from "hardhat/config";
-import { Zap__factory } from "../typechain";
+import { ZapMiniV2__factory } from "../typechain";
 
 task("add-intermediate-token", "Add intermediate token")
   .addOptionalParam("token0")
@@ -9,7 +10,7 @@ task("add-intermediate-token", "Add intermediate token")
     const { deployments, ethers } = hre;
     const [deployer] = await ethers.getSigners();
 
-    const zapContract = await deployments.get("Zap");
+    const zapContract = await deployments.get("ZapMiniV2");
     console.log("\x1b[36m%s\x1b[0m", "token0", token0);
     console.log("\x1b[36m%s\x1b[0m", "token1", token1);
     console.log("\x1b[36m%s\x1b[0m", "intermediate", intermediate);
@@ -19,11 +20,12 @@ task("add-intermediate-token", "Add intermediate token")
       zapContract.address,
     );
 
-    const zapInstance = await Zap__factory.connect(
+    const zapInstance = await ZapMiniV2__factory.connect(
       zapContract.address,
       deployer,
     );
     const tx = await zapInstance.addIntermediateToken(
+      QUICKSWAP, // change me
       token0,
       token1,
       intermediate,
