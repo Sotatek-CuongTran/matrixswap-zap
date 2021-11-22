@@ -69,6 +69,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
     receive() external payable {}
 
     /* ========== View Functions ========== */
+
+    /// @notice get router pair address for protocol
+    /// @param _type protocol type
+    /// @param _address pair address
+    /// @return address
     function routePair(bytes32 _type, address _address)
         external
         view
@@ -77,8 +82,22 @@ contract ZapMiniV2 is OwnableUpgradeable {
         return protocols[_type].routePairAddresses[_address];
     }
 
-    /// @notice in V1, token will convert to ETH, then ETH => token0, token1 => LP
+    /// @notice get router pair address for protocol
+    /// @param _type protocol type
+    /// @param _pair pair - bytes32
+    /// @return address
+    function getIntermediateToken(bytes32 _type, bytes32 _pair)
+        external
+        view
+        returns (address)
+    {
+        return protocols[_type].intermediateTokens[_pair];
+    }
+
+    /// @notice zap in for token ERC20
+    /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
     /// but in this version, we do not convert to ETH, A => token0, token1 => LP
+    /// @param _params zapIn params
     function zapInToken(ZapInForm calldata _params)
         public
         returns (uint256 liquidity)
@@ -103,8 +122,12 @@ contract ZapMiniV2 is OwnableUpgradeable {
         _transferExcessBalance(token1, msg.sender);
     }
 
-    /// @notice in V1, token will convert to ETH, then ETH => token0, token1 => LP
+    /// @notice zap in token with custom route
+    /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
     /// but in this version, we do not convert to ETH, A => token0, token1 => LP
+    /// @param _params zapIn params
+    /// @param _path1 path1
+    /// @param _path2 path2
     function zapInTokenV2(
         ZapInForm memory _params,
         address[] calldata _path1,
@@ -135,6 +158,10 @@ contract ZapMiniV2 is OwnableUpgradeable {
         _transferExcessBalance(token1, msg.sender);
     }
 
+    /// @notice zap in ETH to LP
+    /// @param _type protocol type
+    /// @param _to lp token out
+    /// @param _receiver receiver address
     function zapIn(
         bytes32 _type,
         address _to,
@@ -153,13 +180,18 @@ contract ZapMiniV2 is OwnableUpgradeable {
         emit ZapIn(WMATIC, _to, msg.value, _type);
     }
 
+    // @notice zap out LP to token
+    /// @param _router protocol type
+    /// @param _from lp token in
+    /// @param _amount amount LP in
+    /// @param _receiver receiver address
     function zapOut(
         address _router,
         address _from,
-        uint256 amount,
+        uint256 _amount,
         address _receiver
     ) external {
-        IERC20(_from).safeTransferFrom(_receiver, address(this), amount);
+        IERC20(_from).safeTransferFrom(_receiver, address(this), _amount);
         _approveTokenIfNeeded(_router, _from);
 
         IUniswapV2Pair pair = IUniswapV2Pair(_from);
@@ -168,7 +200,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
         if (token0 == WMATIC || token1 == WMATIC) {
             IUniswapV2Router02(_router).removeLiquidityETH(
                 token0 != WMATIC ? token0 : token1,
-                amount,
+                _amount,
                 0,
                 0,
                 _receiver,
@@ -178,7 +210,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
             IUniswapV2Router02(_router).removeLiquidity(
                 token0,
                 token1,
-                amount,
+                _amount,
                 0,
                 0,
                 _receiver,
@@ -189,6 +221,10 @@ contract ZapMiniV2 is OwnableUpgradeable {
 
     /* ========== RESTRICTED FUNCTIONS ========== */
 
+    // @notice set router pair address
+    /// @param _type protocol type
+    /// @param _asset token address
+    /// @param _route route address
     function setRoutePairAddress(
         bytes32 _type,
         address _asset,
@@ -197,15 +233,24 @@ contract ZapMiniV2 is OwnableUpgradeable {
         protocols[_type].routePairAddresses[_asset] = _route;
     }
 
-    function withdraw(address token) external onlyOwner {
-        if (token == address(0)) {
+    /// @notice withdraw token that contract hold
+    /// @param _token token address
+    function withdraw(address _token) external onlyOwner {
+        if (_token == address(0)) {
             payable(owner()).transfer(address(this).balance);
             return;
         }
 
-        IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)));
+        IERC20(_token).transfer(
+            owner(),
+            IERC20(_token).balanceOf(address(this))
+        );
     }
 
+    // @notice set factory and router for protocol
+    /// @param _type protocol type
+    /// @param _factory factory address
+    /// @param _router router address
     function setFactoryAndRouter(
         bytes32 _type,
         address _factory,
@@ -215,6 +260,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
         protocols[_type].factory = _factory;
     }
 
+    /// @notice set intermediate token for  token0 - token1
+    /// @param _type protocol type
+    /// @param _token0 token0 address
+    /// @param _token1 token1 address
+    /// @param _intermediateAddress intermediate token address
     function addIntermediateToken(
         bytes32 _type,
         address _token0,
@@ -225,6 +275,10 @@ contract ZapMiniV2 is OwnableUpgradeable {
         protocols[_type].intermediateTokens[key] = _intermediateAddress;
     }
 
+    /// @notice unset intermediate token for  token0 - token1
+    /// @param _type protocol type
+    /// @param _token0 token0 address
+    /// @param _token1 token1 address
     function removeIntermediateToken(
         bytes32 _type,
         address _token0,
@@ -236,7 +290,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
 
     /* ========== Private Functions ========== */
 
-    /// @notice ETH is MATIC in polygon
+    /// @notice swap ETH to LP token, ETH is MATIC in polygon
+    /// @param _type protocol type
+    /// @param _lp lp address
+    /// @param _amount amount to swap
+    /// @param _receiver receiver address
     function _swapETHToLP(
         bytes32 _type,
         address _lp,
@@ -291,7 +349,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
         }
     }
 
-    /// @notice ETH is MATIC in polygon
+    /// @notice swap ETH to token, ETH is MATIC in polygon
+    /// @param _type protocol type
+    /// @param _token token address
+    /// @param _value amount to swap
+    /// @param _receiver receiver address
     function _swapETHForToken(
         bytes32 _type,
         address _token,
@@ -321,6 +383,12 @@ contract ZapMiniV2 is OwnableUpgradeable {
         return amounts[amounts.length - 1];
     }
 
+    /// @notice swap token to token
+    /// @param _type protocol type
+    /// @param _from from token address
+    /// @param _amount amount to swap
+    /// @param _to to token address
+    /// @param _receiver receiver address
     function _swap(
         bytes32 _type,
         address _from,
@@ -379,6 +447,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
         return amounts[amounts.length - 1];
     }
 
+    /// @notice swap token to token with custom route
+    /// @param _router router address
+    /// @param _amount amount to swap
+    /// @param _path route path
+    /// @param _receiver receiver address
     function _swapByPath(
         address _router,
         uint256 _amount,
@@ -396,6 +469,9 @@ contract ZapMiniV2 is OwnableUpgradeable {
         return amounts[amounts.length - 1];
     }
 
+    /// @notice get key for pair token0 - token1 with key(token0, token1) === key(token1, token0)
+    /// @param _token0 token0
+    /// @param _token1 token1
     function _getBytes32Key(address _token0, address _token1)
         private
         pure
@@ -407,12 +483,19 @@ contract ZapMiniV2 is OwnableUpgradeable {
         return keccak256(abi.encodePacked(_token0, _token1));
     }
 
+    /// @notice approve if needed
+    /// @param _spender spender address
+    /// @param _token token to approve
     function _approveTokenIfNeeded(address _spender, address _token) private {
         if (IERC20(_token).allowance(address(this), address(_spender)) == 0) {
             IERC20(_token).safeApprove(address(_spender), type(uint256).max);
         }
     }
 
+    /// @notice check is has pair of token0 - token1
+    /// @param _factory factory address
+    /// @param _token0 token0 address
+    /// @param _token1 token1 address
     function _hasPair(
         address _factory,
         address _token0,
@@ -422,6 +505,9 @@ contract ZapMiniV2 is OwnableUpgradeable {
             IUniswapV2Factory(_factory).getPair(_token0, _token1) != address(0);
     }
 
+    /// @notice transfer excess balance to user, when user call zap func
+    /// @param _token token to transfer
+    /// @param _user receiver
     function _transferExcessBalance(address _token, address _user) private {
         uint256 amount = IERC20(_token).balanceOf(address(this));
         if (amount > 0) {
@@ -429,6 +515,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
         }
     }
 
+    /// @notice convert token to LP
+    /// @param _params convert params
+    /// @param _router protocol router address
+    /// @param _token0 token0
+    /// @param _token1 token1
     function _convertToLP(
         ZapInForm memory _params,
         address _router,
@@ -497,6 +588,13 @@ contract ZapMiniV2 is OwnableUpgradeable {
         );
     }
 
+    /// @notice convert token to LP with custom path
+    /// @param _params convert params
+    /// @param _router protocol router address
+    /// @param _token0 token0
+    /// @param _token1 token1
+    /// @param _path1 path1
+    /// @param _path2 path2
     function _convertToLPByPath(
         ZapInForm memory _params,
         address _router,
