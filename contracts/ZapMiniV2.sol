@@ -14,7 +14,6 @@ contract ZapMiniV2 is OwnableUpgradeable {
 
     struct ProtocolStats {
         mapping(bytes32 => address) intermediateTokens;
-        mapping(address => address) routePairAddresses;
         address router;
         address factory;
     }
@@ -72,26 +71,18 @@ contract ZapMiniV2 is OwnableUpgradeable {
 
     /// @notice get router pair address for protocol
     /// @param _type protocol type
-    /// @param _address pair address
+    /// @param _token0 token0 address
+    /// @param _token1 token1 address
     /// @return address
-    function routePair(bytes32 _type, address _address)
-        external
-        view
-        returns (address)
-    {
-        return protocols[_type].routePairAddresses[_address];
-    }
-
-    /// @notice get router pair address for protocol
-    /// @param _type protocol type
-    /// @param _pair pair - bytes32
-    /// @return address
-    function getIntermediateToken(bytes32 _type, bytes32 _pair)
-        external
-        view
-        returns (address)
-    {
-        return protocols[_type].intermediateTokens[_pair];
+    function getIntermediateToken(
+        bytes32 _type,
+        address _token0,
+        address _token1
+    ) external view returns (address) {
+        return
+            protocols[_type].intermediateTokens[
+                _getBytes32Key(_token0, _token1)
+            ];
     }
 
     /// @notice zap in for token ERC20
@@ -181,24 +172,25 @@ contract ZapMiniV2 is OwnableUpgradeable {
     }
 
     // @notice zap out LP to token
-    /// @param _router protocol type
+    /// @param _type protocol type
     /// @param _from lp token in
     /// @param _amount amount LP in
     /// @param _receiver receiver address
     function zapOut(
-        address _router,
+        bytes32 _type,
         address _from,
         uint256 _amount,
         address _receiver
     ) external {
-        IERC20(_from).safeTransferFrom(_receiver, address(this), _amount);
-        _approveTokenIfNeeded(_router, _from);
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+        address router = protocols[_type].router;
+        _approveTokenIfNeeded(router, _from);
 
         IUniswapV2Pair pair = IUniswapV2Pair(_from);
         address token0 = pair.token0();
         address token1 = pair.token1();
         if (token0 == WMATIC || token1 == WMATIC) {
-            IUniswapV2Router02(_router).removeLiquidityETH(
+            IUniswapV2Router02(router).removeLiquidityETH(
                 token0 != WMATIC ? token0 : token1,
                 _amount,
                 0,
@@ -207,7 +199,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
                 block.timestamp
             );
         } else {
-            IUniswapV2Router02(_router).removeLiquidity(
+            IUniswapV2Router02(router).removeLiquidity(
                 token0,
                 token1,
                 _amount,
@@ -220,18 +212,6 @@ contract ZapMiniV2 is OwnableUpgradeable {
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
-
-    // @notice set router pair address
-    /// @param _type protocol type
-    /// @param _asset token address
-    /// @param _route route address
-    function setRoutePairAddress(
-        bytes32 _type,
-        address _asset,
-        address _route
-    ) external onlyOwner {
-        protocols[_type].routePairAddresses[_asset] = _route;
-    }
 
     /// @notice withdraw token that contract hold
     /// @param _token token address
@@ -320,7 +300,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
                 value: _amount - swapValue
             }(token, tokenAmount, 0, 0, _receiver, block.timestamp);
         } else {
-            uint256 swapValue = _amount - 2;
+            uint256 swapValue = _amount / 2;
             uint256 token0Amount = _swapETHForToken(
                 _type,
                 token0,
@@ -362,10 +342,12 @@ contract ZapMiniV2 is OwnableUpgradeable {
     ) private returns (uint256) {
         address[] memory path;
 
-        if (protocols[_type].routePairAddresses[_token] != address(0)) {
+        bytes32 keyPair = _getBytes32Key(WMATIC, _token);
+
+        if (protocols[_type].intermediateTokens[keyPair] != address(0)) {
             path = new address[](3);
             path[0] = WMATIC;
-            path[1] = protocols[_type].routePairAddresses[_token];
+            path[1] = protocols[_type].intermediateTokens[keyPair];
             path[2] = _token;
         } else {
             path = new address[](2);

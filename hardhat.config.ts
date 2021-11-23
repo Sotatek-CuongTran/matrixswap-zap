@@ -66,6 +66,9 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       chainId: chainIds.hardhat,
+      accounts: {
+        accountsBalance: "1000000000000000000000000000000",
+      },
     },
     goerli: getChainConfig("goerli"),
     kovan: getChainConfig("kovan"),

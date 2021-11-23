@@ -130,6 +130,7 @@ interface ContractFixtureV2 {
   pair13: Contract;
   pair04: Contract;
   pair14: Contract;
+  pair0ETH: Contract;
   factory: Contract;
   router: IUniswapV2Router02;
   farmingPool01: StakingRewards;
@@ -161,6 +162,9 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     abi: weth9abi,
     bytecode: weth9bytecode,
   })) as unknown as MockWETH;
+  await WETH.deposit({
+    value: toWei("1000000000"),
+  });
 
   // deploy V2
   const factory = await deployContract(wallet as any, UniswapV2Factory, [
@@ -184,7 +188,7 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     value: "0x56BC75E2D63100000",
   });
 
-  for (const token of [token0, token1, token2, token3, token4]) {
+  for (const token of [token0, token1, token2, token3, token4, WETH]) {
     // approve for router and pair
     await token.approve(router.address, ethers.constants.MaxUint256);
     await token.approve(factory.address, ethers.constants.MaxUint256);
@@ -199,6 +203,8 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
   await factory.createPair(token1.address, token3.address);
   await factory.createPair(token0.address, token4.address);
   await factory.createPair(token1.address, token4.address);
+  await factory.createPair(WETH.address, token0.address);
+  await factory.createPair(WETH.address, token1.address);
 
   const getPairContract = async (tokenA: IERC20, tokenB: IERC20) => {
     const pairAddress = await factory.getPair(tokenA.address, tokenB.address);
@@ -227,6 +233,8 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
   const pair13 = await getPairContract(token1, token3);
   const pair04 = await getPairContract(token0, token4);
   const pair14 = await getPairContract(token1, token4);
+  const pair0ETH = await getPairContract(token0, WETH);
+  await getPairContract(token1, WETH);
 
   // args: [_rewardDistribution, _rewardsToken, _stakingToken]
   const farmingPool01 = (await deployContract(wallet as any, StakingRewardABI, [
@@ -235,20 +243,21 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     pair01.address,
   ])) as StakingRewards;
 
-  console.log("token0: ", token0.address);
-  console.log("token1: ", token1.address);
-  console.log("token2: ", token2.address);
-  console.log("token3: ", token3.address);
-  console.log("token4: ", token4.address);
-  console.log("pair01: ", pair01.address);
-  console.log("pair02: ", pair02.address);
-  console.log("pair23: ", pair23.address);
-  console.log("pair13: ", pair13.address);
-  console.log("pair04: ", pair04.address);
-  console.log("pair14: ", pair14.address);
-  console.log("router: ", router.address);
-  console.log("factory: ", factory.address);
-  console.log("farmingPool01: ", farmingPool01.address);
+  // console.log("WETH: ", WETH.address);
+  // console.log("token0: ", token0.address);
+  // console.log("token1: ", token1.address);
+  // console.log("token2: ", token2.address);
+  // console.log("token3: ", token3.address);
+  // console.log("token4: ", token4.address);
+  // console.log("pair01: ", pair01.address);
+  // console.log("pair02: ", pair02.address);
+  // console.log("pair23: ", pair23.address);
+  // console.log("pair13: ", pair13.address);
+  // console.log("pair04: ", pair04.address);
+  // console.log("pair14: ", pair14.address);
+  // console.log("router: ", router.address);
+  // console.log("factory: ", factory.address);
+  // console.log("farmingPool01: ", farmingPool01.address);
 
   return {
     token0,
@@ -262,8 +271,10 @@ export const fixtureV2: Fixture<ContractFixtureV2 | any> = async (
     pair13,
     pair04,
     pair14,
+    WETH,
     farmingPool01,
     router,
     factory,
+    pair0ETH,
   };
 };
