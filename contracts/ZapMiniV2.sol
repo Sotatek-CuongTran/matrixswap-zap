@@ -315,6 +315,80 @@ contract ZapMiniV2 is OwnableUpgradeable {
         }
     }
 
+    // @notice zap out LP to token
+    /// @param _type protocol type
+    /// @param _from lp token in
+    /// @param _amount amount LP in
+    /// @param _receiver receiver address
+    function zapOutMultipleToken(
+        bytes32 _type,
+        address _from,
+        uint256 _amount,
+        address[] calldata _toTokens,
+        uint8[] calldata _toRatios,
+        address _receiver
+    ) external {
+        uint256 length = _toTokens.length;
+
+        uint8 totalRatio;
+        for (uint256 i = 0; i < length; i++) {
+            totalRatio = totalRatio + _toRatios[i];
+        }
+        require(totalRatio == uint8(100), "Zap: Invalid ratio");
+
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+        address router = protocols[_type].router;
+        _approveTokenIfNeeded(router, _from);
+
+        IUniswapV2Pair pair = IUniswapV2Pair(_from);
+        address token0 = pair.token0();
+        address token1 = pair.token1();
+        IUniswapV2Router02(router).removeLiquidity(
+            token0,
+            token1,
+            _amount,
+            0,
+            0,
+            address(this),
+            block.timestamp
+        );
+
+        // convert token0 to token 1
+        {
+            address[] memory path = new address[](2);
+            path[0] = token0;
+            path[1] = token1;
+            _approveTokenIfNeeded(router, token0);
+            IUniswapV2Router02(router).swapExactTokensForTokens(
+                _amount,
+                0,
+                path,
+                _receiver,
+                block.timestamp
+            );
+        }
+
+        uint256 token1Balance = IERC20(token1).balanceOf(address(this));
+        for (uint256 i = 0; i < length; i++) {
+            address[] memory tempPath = new address[](2);
+            tempPath[0] = token1;
+            tempPath[1] = _toTokens[i];
+
+            uint256 amount = (_toRatios[i] * token1Balance) / 100;
+            if (i == length - 1) {
+                amount = IERC20(token1).balanceOf(address(this));
+            }
+
+            IUniswapV2Router02(router).swapExactTokensForTokens(
+                amount,
+                0,
+                tempPath,
+                _receiver,
+                block.timestamp
+            );
+        }
+    }
+
     /* ========== RESTRICTED FUNCTIONS ========== */
 
     /// @notice withdraw token that contract hold
