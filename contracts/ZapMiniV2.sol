@@ -9,6 +9,17 @@ import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IWMATIC.sol";
 
+interface ICurvePool {
+    function add_liquidity(
+        uint256[3] calldata _amounts,
+        uint256 _min_mint_amount
+    ) external;
+
+    function underlying_coins(uint256) external returns (address);
+
+    function lp_token() external returns (address);
+}
+
 contract ZapMiniV2 is OwnableUpgradeable {
     using SafeERC20 for IERC20;
 
@@ -147,6 +158,37 @@ contract ZapMiniV2 is OwnableUpgradeable {
         // send excess amount to msg.sender
         _transferExcessBalance(token0, msg.sender);
         _transferExcessBalance(token1, msg.sender);
+    }
+
+    /// @notice zap in for token ERC20
+    /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
+    /// but in this version, we do not convert to ETH, A => token0, token1 => LP
+    /// @param _from zapin token
+    /// @param _amount amount zapin
+    /// @param _curvePool curvePool address
+    function zapInTokenCurve(
+        address _from,
+        uint256 _amount,
+        address _curvePool
+    ) public returns (uint256 liquidity) {
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+
+        // convert _from to first token of _curvePool by sushi protocol
+        address firstCurveToken = ICurvePool(_curvePool).underlying_coins(0);
+        if (_from != firstCurveToken) {
+            bytes32 sushi = keccak256("SUSHISWAP");
+            address router = protocols[sushi].router;
+            _approveTokenIfNeeded(router, _from);
+            _swap(sushi, _from, _amount, firstCurveToken, address(this));
+        }
+
+        uint256[3] memory amounts;
+        amounts[0] = IERC20(firstCurveToken).balanceOf(address(this));
+        _approveTokenIfNeeded(_curvePool, firstCurveToken);
+        ICurvePool(_curvePool).add_liquidity(amounts, 0);
+        address lpToken = ICurvePool(_curvePool).lp_token();
+        liquidity = IERC20(lpToken).balanceOf(address(this));
+        IERC20(lpToken).safeTransfer(msg.sender, liquidity);
     }
 
     /// @notice zap in ETH to LP
@@ -393,10 +435,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
             path[0] = _from;
             path[2] = _to;
 
-            if (pair == address(0)) {
-                path[1] = protocols[_type].intermediateTokens[
-                    _getBytes32Key(_from, _to)
-                ];
+            address intermediateToken = protocols[_type].intermediateTokens[
+                _getBytes32Key(_from, _to)
+            ];
+            if (intermediateToken != address(0)) {
+                path[1] = intermediateToken;
             } else if (
                 _hasPair(factory, _from, WETH) && _hasPair(factory, WETH, _to)
             ) {
@@ -493,7 +536,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
     function _transferExcessBalance(address _token, address _user) private {
         uint256 amount = IERC20(_token).balanceOf(address(this));
         if (amount > 0) {
-            IERC20(_token).transfer(_user, amount);
+            IERC20(_token).safeTransfer(_user, amount);
         }
     }
 
