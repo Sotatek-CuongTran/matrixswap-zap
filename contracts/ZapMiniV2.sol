@@ -37,6 +37,14 @@ contract ZapMiniV2 is OwnableUpgradeable {
         address receiver;
     }
 
+    struct ZapInMultiTokenForm {
+        bytes32 protocolType;
+        address[] from;
+        uint256[] amount;
+        address to;
+        address receiver;
+    }
+
     /* ========== CONSTANT VARIABLES ========== */
 
     address public USDT;
@@ -100,6 +108,39 @@ contract ZapMiniV2 is OwnableUpgradeable {
     /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
     /// but in this version, we do not convert to ETH, A => token0, token1 => LP
     /// @param _params zapIn params
+    function zapInMultiToken(ZapInMultiTokenForm calldata _params)
+        public
+        returns (uint256 liquidity)
+    {
+        IUniswapV2Pair pair = IUniswapV2Pair(_params.to);
+        address token0 = pair.token0();
+        address token1 = pair.token1();
+
+        _swapMultiTokenToLPPairToken(
+            _params.protocolType,
+            _params.from,
+            _params.amount,
+            token0,
+            token1,
+            _params.to
+        );
+
+        liquidity = _addLiquidity(
+            protocols[_params.protocolType].router,
+            token0,
+            token1,
+            _params.receiver
+        );
+
+        // send excess amount to msg.sender
+        _transferExcessBalance(token0, msg.sender);
+        _transferExcessBalance(token1, msg.sender);
+    }
+
+    /// @notice zap in for token ERC20
+    /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
+    /// but in this version, we do not convert to ETH, A => token0, token1 => LP
+    /// @param _params zapIn params
     function zapInToken(ZapInForm calldata _params)
         public
         returns (uint256 liquidity)
@@ -117,8 +158,20 @@ contract ZapMiniV2 is OwnableUpgradeable {
         address token0 = pair.token0();
         address token1 = pair.token1();
 
-        liquidity = _convertToLP(_params, router, token0, token1);
-
+        _swapTokenToLPPairToken(
+            _params.protocolType,
+            _params.from,
+            _params.amount,
+            token0,
+            token1,
+            _params.to
+        );
+        liquidity = _addLiquidity(
+            protocols[_params.protocolType].router,
+            token0,
+            token1,
+            _params.receiver
+        );
         // send excess amount to msg.sender
         _transferExcessBalance(token0, msg.sender);
         _transferExcessBalance(token1, msg.sender);
@@ -128,12 +181,12 @@ contract ZapMiniV2 is OwnableUpgradeable {
     /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
     /// but in this version, we do not convert to ETH, A => token0, token1 => LP
     /// @param _params zapIn params
-    /// @param _path1 path1
-    /// @param _path2 path2
+    /// @param _path0 path1
+    /// @param _path1 path2
     function zapInTokenV2(
         ZapInForm memory _params,
-        address[] calldata _path1,
-        address[] calldata _path2
+        address[] calldata _path0,
+        address[] calldata _path1
     ) public returns (uint256 liquidity) {
         IERC20(_params.from).safeTransferFrom(
             msg.sender,
@@ -146,13 +199,22 @@ contract ZapMiniV2 is OwnableUpgradeable {
         IUniswapV2Pair pair = IUniswapV2Pair(_params.to);
         address token0 = pair.token0();
         address token1 = pair.token1();
-        liquidity = _convertToLPByPath(
-            _params,
-            router,
+
+        _swapTokenToLPPairTokenByPath(
+            _params.protocolType,
+            _params.from,
+            _params.amount,
             token0,
             token1,
-            _path1,
-            _path2
+            _params.to,
+            _path0,
+            _path1
+        );
+        liquidity = _addLiquidity(
+            protocols[_params.protocolType].router,
+            token0,
+            token1,
+            _params.receiver
         );
 
         // send excess amount to msg.sender
@@ -461,6 +523,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
             }
         }
 
+        _approveTokenIfNeeded(protocols[_type].router, path[0]);
         uint256[] memory amounts = IUniswapV2Router02(protocols[_type].router)
             .swapExactTokensForTokens(
                 _amount,
@@ -483,6 +546,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
         address[] memory _path,
         address _receiver
     ) private returns (uint256) {
+        _approveTokenIfNeeded(_router, _path[0]);
         uint256[] memory amounts = IUniswapV2Router02(_router)
             .swapExactTokensForTokens(
                 _amount,
@@ -540,151 +604,92 @@ contract ZapMiniV2 is OwnableUpgradeable {
         }
     }
 
-    /// @notice convert token to LP
-    /// @param _params convert params
-    /// @param _router protocol router address
-    /// @param _token0 token0
-    /// @param _token1 token1
-    function _convertToLP(
-        ZapInForm memory _params,
-        address _router,
+    function _swapMultiTokenToLPPairToken(
+        bytes32 _type,
+        address[] memory _fromTokens,
+        uint256[] memory _amounts,
         address _token0,
-        address _token1
-    ) private returns (uint256 liquidity) {
-        if (_params.from == _token0 || _params.from == _token1) {
-            // swap half amount for other
-            address other = _params.from == _token0 ? _token1 : _token0;
-            _approveTokenIfNeeded(_router, other);
-            uint256 sellAmount = _params.amount / 2;
-            uint256 otherAmount = _swap(
-                _params.protocolType,
-                _params.from,
-                sellAmount,
-                other,
-                address(this)
-            );
-            (, , liquidity) = IUniswapV2Router02(_router).addLiquidity(
-                _params.from,
-                other,
-                _params.amount - sellAmount,
-                otherAmount,
-                0,
-                0,
-                _params.receiver,
-                block.timestamp
-            );
-        } else {
-            uint256 sellAmount = _params.amount / 2;
-            uint256 token0Amount = _swap(
-                _params.protocolType,
-                _params.from,
-                sellAmount,
-                _token0,
-                address(this)
-            );
-            uint256 token1Amount = _swap(
-                _params.protocolType,
-                _params.from,
-                _params.amount - sellAmount,
-                _token1,
-                address(this)
-            );
+        address _token1,
+        address _to
+    ) private {
+        uint256 length = _fromTokens.length;
 
-            _approveTokenIfNeeded(_router, _token0);
-            _approveTokenIfNeeded(_router, _token1);
-            {
-                (, , liquidity) = IUniswapV2Router02(_router).addLiquidity(
-                    _token0,
-                    _token1,
-                    token0Amount,
-                    token1Amount,
-                    0,
-                    0,
-                    _params.receiver,
-                    block.timestamp
-                );
-            }
+        for (uint256 i = 0; i < length; i++) {
+            _swapTokenToLPPairToken(
+                _type,
+                _fromTokens[i],
+                _amounts[i],
+                _token0,
+                _token1,
+                _to
+            );
         }
-        emit ZapIn(
-            _params.from,
-            _params.to,
-            _params.amount,
-            _params.protocolType
-        );
     }
 
-    /// @notice convert token to LP with custom path
-    /// @param _params convert params
-    /// @param _router protocol router address
-    /// @param _token0 token0
-    /// @param _token1 token1
-    /// @param _path1 path1
-    /// @param _path2 path2
-    function _convertToLPByPath(
-        ZapInForm memory _params,
+    function _swapTokenToLPPairToken(
+        bytes32 _type,
+        address _from,
+        uint256 _amount,
+        address _token0,
+        address _token1,
+        address _to
+    ) private {
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+        // swap half amount for other
+        if (_from == _token0 || _from == _token1) {
+            address other = _from == _token0 ? _token1 : _token0;
+            uint256 sellAmount = _amount / 2;
+            _swap(_type, _from, sellAmount, other, address(this));
+        } else {
+            uint256 sellAmount = _amount / 2;
+            _swap(_type, _from, sellAmount, _token0, address(this));
+            _swap(_type, _from, _amount - sellAmount, _token1, address(this));
+        }
+        emit ZapIn(_from, _to, _amount, _type);
+    }
+
+    function _swapTokenToLPPairTokenByPath(
+        bytes32 _type,
+        address _from,
+        uint256 _amount,
+        address _token0,
+        address _token1,
+        address _to,
+        address[] memory _path0,
+        address[] memory _path1
+    ) private {
+        address router = protocols[_type].router;
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
+        // swap half amount for other
+        if (_from == _token0 || _from == _token1) {
+            address[] memory path = _from == _token0 ? _path1 : _path0;
+            uint256 sellAmount = _amount / 2;
+            _swapByPath(router, sellAmount, path, address(this));
+        } else {
+            uint256 sellAmount = _amount / 2;
+            _swapByPath(router, sellAmount, _path0, address(this));
+            _swapByPath(router, _amount - sellAmount, _path1, address(this));
+        }
+        emit ZapIn(_from, _to, _amount, _type);
+    }
+
+    function _addLiquidity(
         address _router,
         address _token0,
         address _token1,
-        address[] memory _path1,
-        address[] memory _path2
+        address _receiver
     ) private returns (uint256 liquidity) {
-        ZapInForm memory tempParams; // to resolve stack too deep fault
-
-        if (_params.from == _token0 || _params.from == _token1) {
-            // swap half amount for other
-            address other = _params.from == _token0 ? _token1 : _token0;
-            address[] memory path = _params.from == _token0 ? _path1 : _path2;
-            _approveTokenIfNeeded(_router, other);
-            uint256 sellAmount = _params.amount / 2;
-            uint256 otherAmount = _swapByPath(
-                _router,
-                sellAmount,
-                path,
-                address(this)
-            );
-            (, , liquidity) = IUniswapV2Router02(_router).addLiquidity(
-                _params.from,
-                other,
-                tempParams.amount - sellAmount, // to resolve stack too deep fault
-                otherAmount,
-                0,
-                0,
-                tempParams.receiver, // to resolve stack too deep fault
-                block.timestamp
-            );
-        } else {
-            uint256 sellAmount = tempParams.amount / 2;
-            uint256 token0Amount = _swapByPath(
-                _router,
-                sellAmount,
-                _path1,
-                address(this)
-            );
-            uint256 token1Amount = _swapByPath(
-                _router,
-                tempParams.amount - sellAmount,
-                _path2,
-                address(this)
-            );
-            _approveTokenIfNeeded(_router, _token0);
-            _approveTokenIfNeeded(_router, _token1);
-            (, , liquidity) = IUniswapV2Router02(_router).addLiquidity(
-                _token0,
-                _token1,
-                token0Amount,
-                token1Amount,
-                0,
-                0,
-                tempParams.receiver,
-                block.timestamp
-            );
-        }
-
-        emit ZapIn(
-            tempParams.from,
-            tempParams.to,
-            tempParams.amount,
-            tempParams.protocolType
+        _approveTokenIfNeeded(_router, _token0);
+        _approveTokenIfNeeded(_router, _token1);
+        (, , liquidity) = IUniswapV2Router02(_router).addLiquidity(
+            _token0,
+            _token1,
+            IERC20(_token0).balanceOf(address(this)),
+            IERC20(_token1).balanceOf(address(this)),
+            0,
+            0,
+            _receiver,
+            block.timestamp
         );
     }
 }
