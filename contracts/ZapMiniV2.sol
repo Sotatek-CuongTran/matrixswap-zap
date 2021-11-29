@@ -10,11 +10,6 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IWMATIC.sol";
 
 interface ICurvePool {
-    function add_liquidity(
-        uint256[3] calldata _amounts,
-        uint256 _min_mint_amount
-    ) external;
-
     function underlying_coins(uint256) external returns (address);
 
     function lp_token() external returns (address);
@@ -231,7 +226,9 @@ contract ZapMiniV2 is OwnableUpgradeable {
     function zapInTokenCurve(
         address _from,
         uint256 _amount,
-        address _curvePool
+        address _curvePool,
+        uint256 _poolLength,
+        string memory _fnSig
     ) public returns (uint256 liquidity) {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -244,10 +241,14 @@ contract ZapMiniV2 is OwnableUpgradeable {
             _swap(sushi, _from, _amount, firstCurveToken, address(this));
         }
 
-        uint256[3] memory amounts;
+        uint256[] memory amounts = new uint256[](_poolLength);
         amounts[0] = IERC20(firstCurveToken).balanceOf(address(this));
         _approveTokenIfNeeded(_curvePool, firstCurveToken);
-        ICurvePool(_curvePool).add_liquidity(amounts, 0);
+        (bool success, ) = _curvePool.call(
+            abi.encodeWithSignature(_fnSig, amounts)
+        );
+        require(success == true, "Zap: Failed when addliquidity");
+
         address lpToken = ICurvePool(_curvePool).lp_token();
         liquidity = IERC20(lpToken).balanceOf(address(this));
         IERC20(lpToken).safeTransfer(msg.sender, liquidity);

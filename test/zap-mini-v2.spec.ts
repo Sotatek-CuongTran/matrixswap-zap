@@ -130,8 +130,21 @@ describe("AutoCompounder", () => {
     });
 
     it("Zap in curve lp token", async () => {
-      await zap.zapInTokenCurve(token4.address, toWei("5"), curvePool.address);
-      await zap.zapInTokenCurve(token3.address, toWei("5"), curvePool.address);
+      const fnSig = "add_liquidity(uint256[3],uint256)";
+      await zap.zapInTokenCurve(
+        token4.address,
+        toWei("5"),
+        curvePool.address,
+        3,
+        fnSig,
+      );
+      await zap.zapInTokenCurve(
+        token3.address,
+        toWei("5"),
+        curvePool.address,
+        3,
+        fnSig,
+      );
     });
   });
 
