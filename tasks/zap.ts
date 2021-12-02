@@ -67,3 +67,41 @@ task("set-router-factory", "set protocol router and factory").setAction(
     console.log("\x1b[36m%s\x1b[0m", "tx3", tx3);
   },
 );
+
+task("testxxx", "set protocol router and factory").setAction(async function (
+  _,
+  hre,
+) {
+  const { deployments, ethers } = hre;
+  const [deployer] = await ethers.getSigners();
+
+  const zapContract = await deployments.get("ZapMiniV2");
+
+  const zapInstance = await ZapMiniV2__factory.connect(
+    zapContract.address,
+    deployer,
+  );
+
+  const tx = await zapInstance.zapInTokenCurve(
+    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+    "100000000000000000",
+    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+    "5",
+    {
+      gasLimit: 2000000,
+    },
+  );
+  console.log("\x1b[36m%s\x1b[0m", "tx", tx);
+
+  const abi = ["function add_liquidity(uint256[5],uint256)"];
+  const curvePool = new ethers.Contract(
+    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+    abi,
+    deployer,
+  );
+
+  await curvePool.callStatic.add_liquidity(
+    ["100000000000000", "0", "0", "0", "0"],
+    0,
+  );
+});

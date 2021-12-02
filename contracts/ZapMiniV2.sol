@@ -8,11 +8,32 @@ import "./interfaces/IUniswapV2Pair.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IWMATIC.sol";
+import "hardhat/console.sol";
 
 interface ICurvePool {
     function underlying_coins(uint256) external returns (address);
 
     function lp_token() external returns (address);
+}
+
+interface ICurveSwap2 {
+    function add_liquidity(uint256[2] memory amounts, uint256 min_mint_amount)
+        external;
+}
+
+interface ICurveSwap3 {
+    function add_liquidity(uint256[3] memory amounts, uint256 min_mint_amount)
+        external;
+}
+
+interface ICurveSwap4 {
+    function add_liquidity(uint256[4] memory amounts, uint256 min_mint_amount)
+        external;
+}
+
+interface ICurveSwap5 {
+    function add_liquidity(uint256[5] memory amounts, uint256 min_mint_amount)
+        external;
 }
 
 contract ZapMiniV2 is OwnableUpgradeable {
@@ -227,8 +248,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
         address _from,
         uint256 _amount,
         address _curvePool,
-        uint256 _poolLength,
-        string memory _fnSig
+        uint256 _poolLength
     ) public returns (uint256 liquidity) {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), _amount);
 
@@ -241,13 +261,33 @@ contract ZapMiniV2 is OwnableUpgradeable {
             _swap(sushi, _from, _amount, firstCurveToken, address(this));
         }
 
-        uint256[] memory amounts = new uint256[](_poolLength);
-        amounts[0] = IERC20(firstCurveToken).balanceOf(address(this));
+        uint256 tokenBalance = IERC20(firstCurveToken).balanceOf(address(this));
         _approveTokenIfNeeded(_curvePool, firstCurveToken);
-        (bool success, ) = _curvePool.call(
-            abi.encodeWithSignature(_fnSig, amounts)
-        );
-        require(success == true, "Zap: Failed when addliquidity");
+
+        if (_poolLength == 2) {
+            uint256[2] memory amounts;
+            amounts[0] = tokenBalance;
+            console.log("==========================");
+            ICurveSwap2(_curvePool).add_liquidity(amounts, 0);
+        } else if (_poolLength == 3) {
+            uint256[3] memory amounts;
+            amounts[0] = tokenBalance;
+            console.log("length", _poolLength);
+
+            ICurveSwap3(_curvePool).add_liquidity(amounts, 0);
+        } else if (_poolLength == 4) {
+            uint256[4] memory amounts;
+            amounts[0] = tokenBalance;
+
+            ICurveSwap4(_curvePool).add_liquidity(amounts, 0);
+        }
+        // max = 5 coins
+        else {
+            uint256[5] memory amounts;
+            amounts[0] = tokenBalance;
+
+            ICurveSwap5(_curvePool).add_liquidity(amounts, 0);
+        }
 
         address lpToken = ICurvePool(_curvePool).lp_token();
         liquidity = IERC20(lpToken).balanceOf(address(this));

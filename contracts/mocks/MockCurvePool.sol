@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.4;
 
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 contract MockCurve {
     constructor(address _token) {
         token = _token;
@@ -13,6 +15,7 @@ contract MockCurve {
         uint256[3] calldata _amounts,
         uint256 _min_mint_amount
     ) external {
+        IERC20(token).transferFrom(msg.sender, address(this), _amounts[0]);
         amounts[msg.sender] += _amounts[0];
     }
 
