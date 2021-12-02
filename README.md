@@ -16,16 +16,34 @@ template" button at the top of the page.
 ## List supported pool
 
 ```
-    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-    "100000000000000000",
-    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-    "5",
-    "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
-    false,
-```
-
-```
-
+    {
+      "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+        "100000000000000000",
+        "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+        "5",
+        "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
+        false,
+    }
+   {
+      from: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      amount: "100000000000000000",
+      curvePool: "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+      poolLength: "4",
+      to: "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+      use_underlying: false,
+      depositToken: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+      depositTokenIndex: "3",
+    },
+    {
+      from: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      amount: "100000000000000000",
+      curvePool: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      poolLength: "3",
+      to: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      use_underlying: false,
+      depositToken: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      depositTokenIndex: "1",
+    },
 ```
 
 ### Pre Requisites

@@ -83,14 +83,18 @@ task("testxxx", "set protocol router and factory").setAction(async function (
   );
 
   const tx = await zapInstance.callStatic.zapInTokenCurve(
-    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-    "100000000000000000",
-    "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
-    "4",
-    "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
-    false,
     {
-      gasLimit: 2000000,
+      from: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      amount: "100000000000000000",
+      curvePool: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      poolLength: "3",
+      to: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      use_underlying: false,
+      depositToken: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      depositTokenIndex: "1",
+    },
+    {
+      gasLimit: 1300000,
     },
   );
   console.log("\x1b[36m%s\x1b[0m", "tx", tx);
