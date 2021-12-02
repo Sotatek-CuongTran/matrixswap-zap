@@ -13,7 +13,20 @@ My favourite setup for writing Solidity smart contracts.
 This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
 template" button at the top of the page.
 
-## Usage
+## List supported pool
+
+```
+    "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+    "100000000000000000",
+    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+    "5",
+    "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
+    false,
+```
+
+```
+
+```
 
 ### Pre Requisites
 

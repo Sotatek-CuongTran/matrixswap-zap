@@ -82,26 +82,28 @@ task("testxxx", "set protocol router and factory").setAction(async function (
     deployer,
   );
 
-  const tx = await zapInstance.zapInTokenCurve(
+  const tx = await zapInstance.callStatic.zapInTokenCurve(
     "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
     "100000000000000000",
-    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-    "5",
+    "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+    "4",
+    "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+    false,
     {
       gasLimit: 2000000,
     },
   );
   console.log("\x1b[36m%s\x1b[0m", "tx", tx);
 
-  const abi = ["function add_liquidity(uint256[5],uint256)"];
-  const curvePool = new ethers.Contract(
-    "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-    abi,
-    deployer,
-  );
+  // const abi = ["function add_liquidity(uint256[5],uint256)"];
+  // const curvePool = new ethers.Contract(
+  //   "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+  //   abi,
+  //   deployer,
+  // );
 
-  await curvePool.callStatic.add_liquidity(
-    ["100000000000000", "0", "0", "0", "0"],
-    0,
-  );
+  // await curvePool.callStatic.add_liquidity(
+  //   ["100000000000000", "0", "0", "0", "0"],
+  //   0,
+  // );
 });
