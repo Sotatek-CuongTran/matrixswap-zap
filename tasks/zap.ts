@@ -82,21 +82,16 @@ task("testxxx", "set protocol router and factory").setAction(async function (
     deployer,
   );
 
-  const tx = await zapInstance.callStatic.zapInTokenCurve(
-    {
-      from: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-      amount: "100000000000000000",
-      curvePool: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
-      poolLength: "3",
-      to: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
-      use_underlying: false,
-      depositToken: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
-      depositTokenIndex: "1",
-    },
-    {
-      gasLimit: 1300000,
-    },
-  );
+  const tx = await zapInstance.callStatic.zapInTokenCurve({
+    from: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+    amount: "100000000000000000",
+    curvePool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+    poolLength: "5",
+    to: "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
+    use_underlying: false,
+    depositToken: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+    depositTokenIndex: "0",
+  });
   console.log("\x1b[36m%s\x1b[0m", "tx", tx);
 
   // const abi = ["function add_liquidity(uint256[5],uint256)"];
