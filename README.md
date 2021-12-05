@@ -17,6 +17,30 @@ template" button at the top of the page.
 
 ```
     {
+      curvePool: "0x43910e07554312FC7A43e4B71D16A72dDCB5Ec5F",
+      poolLength: "2",
+      to: "0x43910e07554312FC7A43e4B71D16A72dDCB5Ec5F",
+      use_underlying: false,
+      depositToken: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+      depositTokenIndex: "1",
+    },
+    {
+      curvePool: "0xaC974E619888342Dada8B50B3Ad02F0D04CEE6db",
+      poolLength: "3",
+      to: "0xaC974E619888342Dada8B50B3Ad02F0D04CEE6db",
+      use_underlying: false,
+      depositToken: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+      depositTokenIndex: "2",
+    },
+    {
+      curvePool: "0x225FB4176f0E20CDb66b4a3DF70CA3063281E855",
+      poolLength: "4",
+      to: "0x600743b1d8a96438bd46836fd34977a00293f6aa",
+      use_underlying: false,
+      depositToken: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      depositTokenIndex: "1",
+    },
+    {
       curvePool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
       poolLength: "5",
       to: "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
