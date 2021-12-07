@@ -79,6 +79,17 @@ contract ZapMiniV2 is OwnableUpgradeable {
         bool use_underlying;
     }
 
+    struct ZapInCurveMultiTokenForm {
+        address[] from;
+        uint256[] amount;
+        address curvePool;
+        uint256 poolLength;
+        address depositToken;
+        uint8 depositTokenIndex;
+        address to;
+        bool use_underlying;
+    }
+
     struct ZapInForm {
         bytes32 protocolType;
         address from;
@@ -272,9 +283,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
         _transferExcessBalance(token1, msg.sender);
     }
 
-    /// @notice zap in for token ERC20
-    /// @dev in V1, token will convert to ETH, then ETH => token0, token1 => LP
-    /// but in this version, we do not convert to ETH, A => token0, token1 => LP
+    /// @notice zap in for multi token ERC20 - curve protocol
     function zapInTokenCurve(ZapInCurveForm memory _params)
         public
         returns (uint256 liquidity)
@@ -298,6 +307,99 @@ contract ZapMiniV2 is OwnableUpgradeable {
                     _params.depositToken,
                     address(this)
                 );
+            }
+        }
+
+        uint256 tokenBalance = IERC20(_params.depositToken).balanceOf(
+            address(this)
+        );
+        _approveTokenIfNeeded(_params.curvePool, _params.depositToken);
+
+        if (_params.use_underlying) {
+            if (_params.poolLength == 2) {
+                uint256[2] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap2(_params.curvePool).add_liquidity(amounts, 0, true);
+            } else if (_params.poolLength == 3) {
+                uint256[3] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap3(_params.curvePool).add_liquidity(amounts, 0, true);
+            } else if (_params.poolLength == 4) {
+                uint256[4] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap4(_params.curvePool).add_liquidity(amounts, 0, true);
+            }
+            // max = 5 coins
+            else {
+                uint256[5] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap5(_params.curvePool).add_liquidity(amounts, 0, true);
+            }
+        } else {
+            if (_params.poolLength == 2) {
+                uint256[2] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap2(_params.curvePool).add_liquidity(amounts, 0);
+            } else if (_params.poolLength == 3) {
+                uint256[3] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap3(_params.curvePool).add_liquidity(amounts, 0);
+            } else if (_params.poolLength == 4) {
+                uint256[4] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap4(_params.curvePool).add_liquidity(amounts, 0);
+            }
+            // max = 5 coins
+            else {
+                uint256[5] memory amounts;
+                amounts[_params.depositTokenIndex] = tokenBalance;
+
+                ICurveSwap5(_params.curvePool).add_liquidity(amounts, 0);
+            }
+        }
+
+        liquidity = IERC20(_params.to).balanceOf(address(this));
+        IERC20(_params.to).safeTransfer(msg.sender, liquidity);
+    }
+
+    /// @notice zap in for token ERC20 - curve protocol
+    function zapInMultiTokenCurve(ZapInCurveMultiTokenForm memory _params)
+        public
+        returns (uint256 liquidity)
+    {
+        require(
+            _params.from.length == _params.amount.length,
+            "Zap: Invalid input params"
+        );
+
+        uint256 length = _params.from.length;
+        for (uint256 i = 0; i < length; i++) {
+            address from = _params.from[i];
+            uint256 amount = _params.amount[i];
+
+            IERC20(from).safeTransferFrom(msg.sender, address(this), amount);
+
+            // convert _from to first token of _params.curvePool by sushi protocol
+            {
+                if (from != _params.depositToken) {
+                    bytes32 sushi = keccak256("SUSHISWAP");
+                    address router = protocols[sushi].router;
+                    _approveTokenIfNeeded(router, from);
+                    _swap(
+                        sushi,
+                        from,
+                        amount,
+                        _params.depositToken,
+                        address(this)
+                    );
+                }
             }
         }
 

@@ -130,18 +130,29 @@ describe("AutoCompounder", () => {
     // });
 
     it("Zap in curve lp token", async () => {
-      // await zap.zapInTokenCurve(
-      //   token4.address,
-      //   toWei("5"),
-      //   curvePool.address,
-      //   3,
-      // );
-      await zap.zapInTokenCurve(
-        token3.address,
-        toWei("5"),
-        curvePool.address,
-        3,
-      );
+      await zap.zapInTokenCurve({
+        from: token3.address,
+        amount: toWei("5"),
+        curvePool: curvePool.address,
+        depositToken: token4.address,
+        depositTokenIndex: 0,
+        poolLength: 3,
+        to: curvePool.address,
+        use_underlying: false,
+      });
+    });
+
+    it("Zap in multiple token curve lp token", async () => {
+      await zap.zapInMultiTokenCurve({
+        from: [token3.address, token4.address],
+        amount: [toWei("5"), toWei("10")],
+        curvePool: curvePool.address,
+        depositToken: token4.address,
+        depositTokenIndex: 0,
+        poolLength: 3,
+        to: curvePool.address,
+        use_underlying: false,
+      });
     });
   });
 
