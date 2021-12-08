@@ -584,6 +584,11 @@ contract ZapMiniV2 is OwnableUpgradeable {
             tempPath[1] = _toTokens[i];
 
             uint256 amount = (_toRatios[i] * token1Balance) / 100;
+
+            if (token1 == _toTokens[i]) {
+                IERC20(token1).transfer(_receiver, amount);
+                continue;
+            }
             if (i == length - 1) {
                 amount = IERC20(token1).balanceOf(address(this));
             }

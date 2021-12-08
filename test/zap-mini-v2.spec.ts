@@ -85,49 +85,49 @@ describe("AutoCompounder", () => {
       await token4.approve(zap.address, ethers.constants.MaxUint256);
     });
 
-    // it("zap in", async () => {
-    //   const beforeBalance = await pair01.balanceOf(deployer.address);
-    //   await zap.zapIn(QUICKSWAP, pair01.address, deployer.address, {
-    //     value: toWei("5"),
-    //   });
-    //   const afterBalance = await pair01.balanceOf(deployer.address);
-    //   expect(afterBalance).to.be.gt(beforeBalance);
-    // });
+    it("zap in", async () => {
+      const beforeBalance = await pair01.balanceOf(deployer.address);
+      await zap.zapIn(QUICKSWAP, pair01.address, deployer.address, {
+        value: toWei("5"),
+      });
+      const afterBalance = await pair01.balanceOf(deployer.address);
+      expect(afterBalance).to.be.gt(beforeBalance);
+    });
 
-    // it("zap in token", async () => {
-    //   const params = {
-    //     protocolType: QUICKSWAP,
-    //     from: token3.address,
-    //     amount: ethers.utils.parseEther("10"),
-    //     to: pair01.address,
-    //     receiver: deployer.address,
-    //   };
-    //   const beforeBalance = await pair01.balanceOf(deployer.address);
+    it("zap in token", async () => {
+      const params = {
+        protocolType: QUICKSWAP,
+        from: token3.address,
+        amount: ethers.utils.parseEther("10"),
+        to: pair01.address,
+        receiver: deployer.address,
+      };
+      const beforeBalance = await pair01.balanceOf(deployer.address);
 
-    //   const liquidity = await zap.callStatic.zapInToken(params);
-    //   await zap.zapInToken(params);
+      const liquidity = await zap.callStatic.zapInToken(params);
+      await zap.zapInToken(params);
 
-    //   const afterBalance = await pair01.balanceOf(deployer.address);
-    //   expect(afterBalance.sub(beforeBalance)).to.be.eq(liquidity);
-    // });
+      const afterBalance = await pair01.balanceOf(deployer.address);
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(liquidity);
+    });
 
-    // it("zap in multiple token", async () => {
-    //   const params = {
-    //     protocolType: QUICKSWAP,
-    //     from: [token3.address, token4.address],
-    //     amount: [ethers.utils.parseEther("10"), ethers.utils.parseEther("10")],
-    //     to: pair01.address,
-    //     receiver: deployer.address,
-    //   };
-    //   const beforeBalance = await pair01.balanceOf(deployer.address);
+    it("zap in multiple token", async () => {
+      const params = {
+        protocolType: QUICKSWAP,
+        from: [token3.address, token4.address],
+        amount: [ethers.utils.parseEther("10"), ethers.utils.parseEther("10")],
+        to: pair01.address,
+        receiver: deployer.address,
+      };
+      const beforeBalance = await pair01.balanceOf(deployer.address);
 
-    //   const liquidity = await zap.callStatic.zapInMultiToken(params);
-    //   await zap.zapInMultiToken(params);
+      const liquidity = await zap.callStatic.zapInMultiToken(params);
+      await zap.zapInMultiToken(params);
 
-    //   const afterBalance = await pair01.balanceOf(deployer.address);
+      const afterBalance = await pair01.balanceOf(deployer.address);
 
-    //   expect(afterBalance.sub(beforeBalance)).to.be.eq(liquidity);
-    // });
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(liquidity);
+    });
 
     it("Zap in curve lp token", async () => {
       await zap.zapInTokenCurve({
@@ -156,123 +156,154 @@ describe("AutoCompounder", () => {
     });
   });
 
-  // context("Zap Out", () => {
-  //   beforeEach(async () => {
-  //     await token3.approve(zap.address, ethers.constants.MaxUint256);
-  //     await zap.zapIn(QUICKSWAP, pair01.address, deployer.address, {
-  //       value: toWei("5"),
-  //     });
+  context("Zap Out", () => {
+    beforeEach(async () => {
+      await token3.approve(zap.address, ethers.constants.MaxUint256);
+      await zap.zapIn(QUICKSWAP, pair01.address, deployer.address, {
+        value: toWei("5"),
+      });
 
-  //     await zap.zapIn(QUICKSWAP, pair0ETH.address, deployer.address, {
-  //       value: toWei("5"),
-  //     });
-  //   });
+      await zap.zapIn(QUICKSWAP, pair0ETH.address, deployer.address, {
+        value: toWei("5"),
+      });
+    });
 
-  //   it("zap out", async () => {
-  //     const beforeToken0Balance = await token0.balanceOf(deployer.address);
-  //     const beforeToken1Balance = await token1.balanceOf(deployer.address);
+    it("zap out multiple token", async () => {
+      const beforeToken4Balance = await token4.balanceOf(deployer.address);
+      const beforeToken1Balance = await token1.balanceOf(deployer.address);
 
-  //     await pair01.approve(zap.address, ethers.constants.MaxUint256);
-  //     await zap.zapOut(
-  //       QUICKSWAP,
-  //       pair01.address,
-  //       await pair01.balanceOf(deployer.address),
-  //       deployer.address,
-  //     );
-  //     const afterToken0Balance = await token0.balanceOf(deployer.address);
-  //     const afterToken1Balance = await token1.balanceOf(deployer.address);
+      await pair01.approve(zap.address, ethers.constants.MaxUint256);
 
-  //     expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
-  //     expect(afterToken1Balance).to.be.gt(beforeToken1Balance);
-  //   });
+      await expect(
+        zap.zapOutMultipleToken(
+          QUICKSWAP,
+          pair01.address,
+          await pair01.balanceOf(deployer.address),
+          [token0.address, token2.address],
+          [20, 30],
+          deployer.address,
+        ),
+      ).to.revertedWith("Zap: Invalid ratio");
+      await zap.zapOutMultipleToken(
+        QUICKSWAP,
+        pair01.address,
+        await pair01.balanceOf(deployer.address),
+        [token1.address, token4.address],
+        [20, 80],
+        deployer.address,
+      );
+      const afterToken4Balance = await token4.balanceOf(deployer.address);
+      const afterToken1Balance = await token1.balanceOf(deployer.address);
 
-  //   it("zap out - ETH pair", async () => {
-  //     const beforeToken0Balance = await token0.balanceOf(deployer.address);
-  //     const beforeETHBalance = await deployer.getBalance();
+      expect(afterToken4Balance).to.be.gt(beforeToken4Balance);
+      expect(afterToken1Balance).to.be.gt(beforeToken1Balance);
+    });
 
-  //     await pair0ETH.approve(zap.address, ethers.constants.MaxUint256);
-  //     await zap.zapOut(
-  //       QUICKSWAP,
-  //       pair0ETH.address,
-  //       await pair0ETH.balanceOf(deployer.address),
-  //       deployer.address,
-  //     );
-  //     const afterToken0Balance = await token0.balanceOf(deployer.address);
-  //     const afterETHBalance = await deployer.getBalance();
+    it("zap out", async () => {
+      const beforeToken0Balance = await token0.balanceOf(deployer.address);
+      const beforeToken1Balance = await token1.balanceOf(deployer.address);
 
-  //     expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
-  //     expect(afterETHBalance).to.be.gt(beforeETHBalance);
-  //   });
-  // });
+      await pair01.approve(zap.address, ethers.constants.MaxUint256);
+      await zap.zapOut(
+        QUICKSWAP,
+        pair01.address,
+        await pair01.balanceOf(deployer.address),
+        deployer.address,
+      );
+      const afterToken0Balance = await token0.balanceOf(deployer.address);
+      const afterToken1Balance = await token1.balanceOf(deployer.address);
 
-  // context("Another function", () => {
-  //   it("intermediate token", async () => {
-  //     expect(
-  //       await zap.getIntermediateToken(
-  //         QUICKSWAP,
-  //         token0.address,
-  //         token1.address,
-  //       ),
-  //     ).to.be.eq(ethers.constants.AddressZero);
+      expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
+      expect(afterToken1Balance).to.be.gt(beforeToken1Balance);
+    });
 
-  //     await zap.addIntermediateToken(
-  //       QUICKSWAP,
-  //       token0.address,
-  //       token1.address,
-  //       token2.address,
-  //     );
+    it("zap out - ETH pair", async () => {
+      const beforeToken0Balance = await token0.balanceOf(deployer.address);
+      const beforeETHBalance = await deployer.getBalance();
 
-  //     expect(
-  //       await zap.getIntermediateToken(
-  //         QUICKSWAP,
-  //         token0.address,
-  //         token1.address,
-  //       ),
-  //     ).to.be.eq(token2.address);
+      await pair0ETH.approve(zap.address, ethers.constants.MaxUint256);
+      await zap.zapOut(
+        QUICKSWAP,
+        pair0ETH.address,
+        await pair0ETH.balanceOf(deployer.address),
+        deployer.address,
+      );
+      const afterToken0Balance = await token0.balanceOf(deployer.address);
+      const afterETHBalance = await deployer.getBalance();
 
-  //     await zap.removeIntermediateToken(
-  //       QUICKSWAP,
-  //       token0.address,
-  //       token1.address,
-  //     );
+      expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
+      expect(afterETHBalance).to.be.gt(beforeETHBalance);
+    });
+  });
 
-  //     expect(
-  //       await zap.getIntermediateToken(
-  //         QUICKSWAP,
-  //         token0.address,
-  //         token1.address,
-  //       ),
-  //     ).to.be.eq(ethers.constants.AddressZero);
-  //   });
+  context("Another function", () => {
+    it("intermediate token", async () => {
+      expect(
+        await zap.getIntermediateToken(
+          QUICKSWAP,
+          token0.address,
+          token1.address,
+        ),
+      ).to.be.eq(ethers.constants.AddressZero);
 
-  //   it("set router and factory", async () => {
-  //     await zap.setFactoryAndRouter(QUICKSWAP, token0.address, token1.address);
-  //     const protocolInfo = await zap.protocols(QUICKSWAP);
+      await zap.addIntermediateToken(
+        QUICKSWAP,
+        token0.address,
+        token1.address,
+        token2.address,
+      );
 
-  //     expect(protocolInfo.factory).to.be.eq(token0.address);
-  //     expect(protocolInfo.router).to.be.eq(token1.address);
-  //   });
+      expect(
+        await zap.getIntermediateToken(
+          QUICKSWAP,
+          token0.address,
+          token1.address,
+        ),
+      ).to.be.eq(token2.address);
 
-  //   it("withdraw", async () => {
-  //     await token0.transfer(zap.address, toWei("100"));
-  //     await deployer.sendTransaction({
-  //       from: deployer.address,
-  //       to: zap.address,
-  //       value: "0x56BC75E2D63100000",
-  //     });
+      await zap.removeIntermediateToken(
+        QUICKSWAP,
+        token0.address,
+        token1.address,
+      );
 
-  //     const beforeToken0Balance = await token0.balanceOf(deployer.address);
-  //     await zap.withdraw(token0.address);
-  //     const afterToken0Balance = await token0.balanceOf(deployer.address);
+      expect(
+        await zap.getIntermediateToken(
+          QUICKSWAP,
+          token0.address,
+          token1.address,
+        ),
+      ).to.be.eq(ethers.constants.AddressZero);
+    });
 
-  //     expect(afterToken0Balance).to.be.eq(
-  //       beforeToken0Balance.add(toWei("100")),
-  //     );
+    it("set router and factory", async () => {
+      await zap.setFactoryAndRouter(QUICKSWAP, token0.address, token1.address);
+      const protocolInfo = await zap.protocols(QUICKSWAP);
 
-  //     const beforeETHBalance = await deployer.getBalance();
-  //     await zap.withdraw(ethers.constants.AddressZero);
-  //     const afterETHBalance = await deployer.getBalance();
-  //     expect(afterETHBalance).to.be.gt(beforeETHBalance);
-  //   });
-  // });
+      expect(protocolInfo.factory).to.be.eq(token0.address);
+      expect(protocolInfo.router).to.be.eq(token1.address);
+    });
+
+    it("withdraw", async () => {
+      await token0.transfer(zap.address, toWei("100"));
+      await deployer.sendTransaction({
+        from: deployer.address,
+        to: zap.address,
+        value: "0x56BC75E2D63100000",
+      });
+
+      const beforeToken0Balance = await token0.balanceOf(deployer.address);
+      await zap.withdraw(token0.address);
+      const afterToken0Balance = await token0.balanceOf(deployer.address);
+
+      expect(afterToken0Balance).to.be.eq(
+        beforeToken0Balance.add(toWei("100")),
+      );
+
+      const beforeETHBalance = await deployer.getBalance();
+      await zap.withdraw(ethers.constants.AddressZero);
+      const afterETHBalance = await deployer.getBalance();
+      expect(afterETHBalance).to.be.gt(beforeETHBalance);
+    });
+  });
 });
