@@ -569,7 +569,7 @@ contract ZapMiniV2 is OwnableUpgradeable {
             path[1] = token1;
             _approveTokenIfNeeded(router, token0);
             IUniswapV2Router02(router).swapExactTokensForTokens(
-                _amount,
+                IERC20(token0).balanceOf(address(this)),
                 0,
                 path,
                 _receiver,
