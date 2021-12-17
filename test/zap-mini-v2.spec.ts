@@ -4,12 +4,7 @@ import { fixtureV2 } from "./utils/fixture";
 import { ethers, waffle } from "hardhat";
 import { Wallet } from "ethers";
 import web3 from "web3";
-import {
-  IUniswapV2Factory,
-  IUniswapV2Router02,
-  MockCurve,
-  ZapMiniV2,
-} from "../typechain";
+import { IUniswapV2Factory, IUniswapV2Router02, ZapMiniV2 } from "../typechain";
 import { expect } from "chai";
 
 const { toWei } = web3.utils;
@@ -17,7 +12,6 @@ const { toWei } = web3.utils;
 describe("AutoCompounder", () => {
   let wallets: Wallet[];
   let zap: ZapMiniV2;
-  let curvePool: MockCurve;
   let mockWETH: IERC20;
   let token0: IERC20;
   let token1: IERC20;
@@ -73,10 +67,6 @@ describe("AutoCompounder", () => {
     );
 
     // console.log("ZAP: ", zap.address);
-
-    // mock curve pool
-    const CurvePool = await ethers.getContractFactory("MockCurve");
-    curvePool = (await CurvePool.deploy(token4.address)) as MockCurve;
   });
 
   context("Zap In", () => {
@@ -128,32 +118,6 @@ describe("AutoCompounder", () => {
 
       expect(afterBalance.sub(beforeBalance)).to.be.eq(liquidity);
     });
-
-    it("Zap in curve lp token", async () => {
-      await zap.zapInTokenCurve({
-        from: token3.address,
-        amount: toWei("5"),
-        curvePool: curvePool.address,
-        depositToken: token4.address,
-        depositTokenIndex: 0,
-        poolLength: 3,
-        to: curvePool.address,
-        use_underlying: false,
-      });
-    });
-
-    it("Zap in multiple token curve lp token", async () => {
-      await zap.zapInMultiTokenCurve({
-        from: [token3.address, token4.address],
-        amount: [toWei("5"), toWei("10")],
-        curvePool: curvePool.address,
-        depositToken: token4.address,
-        depositTokenIndex: 0,
-        poolLength: 3,
-        to: curvePool.address,
-        use_underlying: false,
-      });
-    });
   });
 
   context("Zap Out", () => {
@@ -197,42 +161,6 @@ describe("AutoCompounder", () => {
 
       expect(afterToken4Balance).to.be.gt(beforeToken4Balance);
       expect(afterToken1Balance).to.be.gt(beforeToken1Balance);
-    });
-
-    it("zap out", async () => {
-      const beforeToken0Balance = await token0.balanceOf(deployer.address);
-      const beforeToken1Balance = await token1.balanceOf(deployer.address);
-
-      await pair01.approve(zap.address, ethers.constants.MaxUint256);
-      await zap.zapOut(
-        QUICKSWAP,
-        pair01.address,
-        await pair01.balanceOf(deployer.address),
-        deployer.address,
-      );
-      const afterToken0Balance = await token0.balanceOf(deployer.address);
-      const afterToken1Balance = await token1.balanceOf(deployer.address);
-
-      expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
-      expect(afterToken1Balance).to.be.gt(beforeToken1Balance);
-    });
-
-    it("zap out - ETH pair", async () => {
-      const beforeToken0Balance = await token0.balanceOf(deployer.address);
-      const beforeETHBalance = await deployer.getBalance();
-
-      await pair0ETH.approve(zap.address, ethers.constants.MaxUint256);
-      await zap.zapOut(
-        QUICKSWAP,
-        pair0ETH.address,
-        await pair0ETH.balanceOf(deployer.address),
-        deployer.address,
-      );
-      const afterToken0Balance = await token0.balanceOf(deployer.address);
-      const afterETHBalance = await deployer.getBalance();
-
-      expect(afterToken0Balance).to.be.gt(beforeToken0Balance);
-      expect(afterETHBalance).to.be.gt(beforeETHBalance);
     });
   });
 

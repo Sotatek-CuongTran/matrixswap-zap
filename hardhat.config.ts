@@ -11,13 +11,13 @@ import { NetworkUserConfig } from "hardhat/types";
 import { join, resolve } from "path";
 import "solidity-coverage";
 require("hardhat-contract-sizer");
+require("./tasks");
 
 dotenvConfig({ path: resolve(__dirname, "./.env") });
 
 // init typechain for the first time
 try {
   readdirSync(join(__dirname, "typechain"));
-  require("./tasks");
 } catch {
   //
 }

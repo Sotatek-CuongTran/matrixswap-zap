@@ -45,19 +45,19 @@ task("set-router-factory", "set protocol router and factory").setAction(
       deployer,
     );
 
-    // const tx = await zapInstance.setFactoryAndRouter(
-    //   QUICKSWAP, // change me
-    //   "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32",
-    //   "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
-    // );
-    // console.log("\x1b[36m%s\x1b[0m", "tx", tx);
+    const tx = await zapInstance.setFactoryAndRouter(
+      QUICKSWAP, // change me
+      "0x5757371414417b8C6CAad45bAeF941aBc7d3Ab32",
+      "0xa5E0829CaCEd8fFDD4De3c43696c57F7D7A678ff",
+    );
+    console.log("\x1b[36m%s\x1b[0m", "tx", tx);
 
-    // const tx2 = await zapInstance.setFactoryAndRouter(
-    //   SUSHISWAP, // change me
-    //   "0xc35dadb65012ec5796536bd9864ed8773abc74c4",
-    //   "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
-    // );
-    // console.log("\x1b[36m%s\x1b[0m", "tx2", tx2);
+    const tx2 = await zapInstance.setFactoryAndRouter(
+      SUSHISWAP, // change me
+      "0xc35dadb65012ec5796536bd9864ed8773abc74c4",
+      "0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506",
+    );
+    console.log("\x1b[36m%s\x1b[0m", "tx2", tx2);
 
     const tx3 = await zapInstance.setFactoryAndRouter(
       APESWAP, // change me
@@ -67,42 +67,3 @@ task("set-router-factory", "set protocol router and factory").setAction(
     console.log("\x1b[36m%s\x1b[0m", "tx3", tx3);
   },
 );
-
-task("testxxx", "set protocol router and factory").setAction(async function (
-  _,
-  hre,
-) {
-  const { deployments, ethers } = hre;
-  const [deployer] = await ethers.getSigners();
-
-  const zapContract = await deployments.get("ZapMiniV2");
-
-  const zapInstance = await ZapMiniV2__factory.connect(
-    zapContract.address,
-    deployer,
-  );
-
-  const tx = await zapInstance.callStatic.zapInTokenCurve({
-    from: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
-    amount: "100000000000000000",
-    curvePool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-    poolLength: "5",
-    to: "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
-    use_underlying: false,
-    depositToken: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-    depositTokenIndex: "0",
-  });
-  console.log("\x1b[36m%s\x1b[0m", "tx", tx);
-
-  // const abi = ["function add_liquidity(uint256[5],uint256)"];
-  // const curvePool = new ethers.Contract(
-  //   "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
-  //   abi,
-  //   deployer,
-  // );
-
-  // await curvePool.callStatic.add_liquidity(
-  //   ["100000000000000", "0", "0", "0", "0"],
-  //   0,
-  // );
-});
