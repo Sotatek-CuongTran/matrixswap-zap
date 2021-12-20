@@ -316,8 +316,8 @@ contract ZapMiniV2 is OwnableUpgradeable {
                 block.timestamp
             );
         }
-
-        emit ZapOut(_from, _amount, _type);
+        bytes32 protocolType = _type;
+        emit ZapOut(_from, _amount, protocolType);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
