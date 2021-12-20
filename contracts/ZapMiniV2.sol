@@ -53,6 +53,12 @@ contract ZapMiniV2 is OwnableUpgradeable {
         bytes32 protocol
     );
 
+    event ZapOut(
+        address indexed lpToken,
+        uint256 indexed amount,
+        bytes32 protocol
+    );
+
     /* ========== INITIALIZER ========== */
 
     function initialize(
@@ -310,6 +316,8 @@ contract ZapMiniV2 is OwnableUpgradeable {
                 block.timestamp
             );
         }
+
+        emit ZapOut(_from, _amount, _type);
     }
 
     /* ========== RESTRICTED FUNCTIONS ========== */
