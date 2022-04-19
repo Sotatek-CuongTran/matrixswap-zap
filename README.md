@@ -13,7 +13,58 @@ My favourite setup for writing Solidity smart contracts.
 This is a GitHub template, which means you can reuse it as many times as you want. You can do that by clicking the "Use this
 template" button at the top of the page.
 
-## Usage
+## List supported pool
+
+```
+    {
+      curvePool: "0x43910e07554312FC7A43e4B71D16A72dDCB5Ec5F",
+      poolLength: "2",
+      to: "0x43910e07554312FC7A43e4B71D16A72dDCB5Ec5F",
+      use_underlying: false,
+      depositToken: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+      depositTokenIndex: "1",
+    },
+    {
+      curvePool: "0xaC974E619888342Dada8B50B3Ad02F0D04CEE6db",
+      poolLength: "3",
+      to: "0xaC974E619888342Dada8B50B3Ad02F0D04CEE6db",
+      use_underlying: false,
+      depositToken: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+      depositTokenIndex: "2",
+    },
+    {
+      curvePool: "0x225FB4176f0E20CDb66b4a3DF70CA3063281E855",
+      poolLength: "4",
+      to: "0x600743b1d8a96438bd46836fd34977a00293f6aa",
+      use_underlying: false,
+      depositToken: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      depositTokenIndex: "1",
+    },
+    {
+      curvePool: "0x1d8b86e3d88cdb2d34688e87e72f388cb541b7c8",
+      poolLength: "5",
+      to: "0xdad97f7713ae9437fa9249920ec8507e5fbb23d3",
+      use_underlying: false,
+      depositToken: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+      depositTokenIndex: "0",
+    },
+    {
+      curvePool: "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+      poolLength: "4",
+      to: "0xb731e7ced547a636f7cd3eee3972eb32b0402893",
+      use_underlying: false,
+      depositToken: "0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270",
+      depositTokenIndex: "3",
+    },
+    {
+      curvePool: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      poolLength: "3",
+      to: "0xac974e619888342dada8b50b3ad02f0d04cee6db",
+      use_underlying: false,
+      depositToken: "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+      depositTokenIndex: "1",
+    },
+```
 
 ### Pre Requisites
 
